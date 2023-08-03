@@ -1,4 +1,5 @@
 1.  Add the following snippet to the build.gradle file
+
 task compileLaptopLibraries(type: Jar) {
     manifest { attributes 'Main-Class': "frc.robot.Laptop.LaptopMain" }
     from { configurations.runtimeClasspath.collect { it.isDirectory() ? it : zipTree(it) } }
@@ -11,4 +12,12 @@ task runLaptopMain(type: JavaExec, dependsOn: compileLaptopLibraries) {
     classpath = files("build/libs/LaptopMain.jar");
     classpath += sourceSets.main.runtimeClasspath
     mainClass = "src\\main\\java\\frc\\robot\\Laptop\\LaptopMain.java"
+}
+
+task createRaspberryJar(type: Jar) {
+    manifest { attributes 'Main-Class': "frc.robot.Raspberry.RaspberryMain" }
+    from { configurations.runtimeClasspath.collect { it.isDirectory() ? it : zipTree(it) } }
+    with jar
+    duplicatesStrategy = DuplicatesStrategy.INCLUDE
+    archiveFileName.set "Raspberry.jar"
 }
