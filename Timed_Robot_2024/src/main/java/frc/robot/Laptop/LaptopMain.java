@@ -10,7 +10,5 @@ public class LaptopMain {
         inst.startClient4("team3692-frc2024");
         inst.setServerTeam(3692, NetworkTableInstance.kDefaultPort4);
         SmartDashboard.setNetworkTableInstance(inst);
-
-        
     }
 }
