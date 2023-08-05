@@ -1,50 +1,84 @@
 package frc.robot.Raspberry;
 
-import edu.wpi.first.cameraserver.CameraServer;
-import edu.wpi.first.wpilibj.I2C;
+import java.util.EnumSet;
+
+import edu.wpi.first.networktables.BooleanPublisher;
+import edu.wpi.first.networktables.NetworkTableEvent;
+import edu.wpi.first.networktables.NetworkTableInstance;
+import edu.wpi.first.networktables.StringSubscriber;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
-import frc.robot.Robot.Constants;
 
 public class RaspberryMain {
-    static RaspberryMain currentRaspberryMain;
-    Accelerometer myAccelerometer;
-    CameraControl myCameras;
+    static BooleanPublisher waitConfirmer;
+    static StringSubscriber instructionReader;
+    static int instructionListener;
+    static RaspberryMaster master;
+    static int closeListener;
     public static void main(String[] args) {
-        while(true) {
-            if(SmartDashboard.getString("Raspberry Instructions", "").equals("Start")) {
-                currentRaspberryMain = new RaspberryMain();
-            } else if(SmartDashboard.getString("Raspberry Instructions", "").equals("Update")) {
-                currentRaspberryMain.update();
-            } else if(SmartDashboard.getString("Raspberry Instructions", "").equals("Close")) {
-                currentRaspberryMain.close();
+        master = new RaspberryMaster();
+
+        NetworkTableInstance inst = NetworkTableInstance.getDefault();
+        inst.startClient4("team3692-frc2024");
+        inst.setServerTeam(3692, NetworkTableInstance.kDefaultPort4);
+        SmartDashboard.setNetworkTableInstance(inst);
+
+        waitConfirmer = inst.getBooleanTopic("/raspberry/waiting").publish();
+        instructionReader = inst.getStringTopic("/raspberry/instructions").subscribe("");
+        instructionListener = inst.addListener(inst.getTopic("/raspberry/instructions"), EnumSet.of(NetworkTableEvent.Kind.kValueAll), event -> {
+            if(event.is(NetworkTableEvent.Kind.kValueAll)) {
+                String instruction = instructionReader.get();
+
+                if(instruction.equals("robotInit")) {
+                    waitConfirmer.set(false);
+                    inst.flush();
+                    master.robotInit();
+                } else if(instruction.equals("robotPeriodic")) {
+                    waitConfirmer.set(false);
+                    inst.flush();
+                    master.robotPeriodic();
+                } else if(instruction.equals("autonomousInit")) {
+                    waitConfirmer.set(false);
+                    inst.flush();
+                    master.autonomousInit();
+                } else if(instruction.equals("autonomousPeriodic")) {
+                    waitConfirmer.set(false);
+                    inst.flush();
+                    master.autonomousPeriodic();
+                } else if(instruction.equals("teleopInit")) {
+                    waitConfirmer.set(false);
+                    inst.flush();
+                    master.teleopInit();
+                } else if(instruction.equals("teleopPeriodic")) {
+                    waitConfirmer.set(false);
+                    inst.flush();
+                    master.teleopPeriodic();
+                } else if(instruction.equals("disabledInit")) {
+                    waitConfirmer.set(false);
+                    inst.flush();
+                    master.disabledInit();
+                } else if(instruction.equals("disabledPeriodic")) {
+                    waitConfirmer.set(false);
+                    inst.flush();
+                    master.disabledPeriodic();
+                } else if(instruction.equals("testInit")) {
+                    waitConfirmer.set(false);
+                    inst.flush();
+                    master.testInit();
+                } else if(instruction.equals("testPeriodic")) {
+                    waitConfirmer.set(false);
+                    inst.flush();
+                    master.testPeriodic();
+                }
+
+                waitConfirmer.set(true);
+                inst.flush();
             }
+        });
 
-            try {
-                Thread.sleep(10);
-            } catch(InterruptedException e) {
-                e.printStackTrace();
+        closeListener = inst.addListener(inst.getTopic("/robot/isOn"), EnumSet.of(NetworkTableEvent.Kind.kDisconnected), event -> {
+            if(event.is(NetworkTableEvent.Kind.kDisconnected)) {
+                master.close();
             }
-        }
-    }
-
-    public RaspberryMain() {
-        myAccelerometer = new Accelerometer(I2C.Port.kMXP);
-        myCameras = new CameraControl(CameraServer.startAutomaticCapture("front", 0), 
-        CameraServer.startAutomaticCapture("left", 1), CameraServer.startAutomaticCapture("right", 2), 
-        CameraServer.startAutomaticCapture("back", 3));
-
-        myAccelerometer.start();
-        myCameras.setResolutionAll(Constants.allCamerasResolutionWidth, Constants.allCamerasResolutionHeight);
-        myCameras.setFPSAll(Constants.allCamerasFPS);
-    }
-
-    public void update() {
-        myAccelerometer.update();
-        myCameras.update();
-    }
-
-    public void close() {
-        myAccelerometer.close();
-        myCameras.close();
+        });
     }
 }

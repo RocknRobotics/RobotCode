@@ -4,11 +4,18 @@
 
 package frc.robot.Robot;
 
+import java.util.EnumSet;
+
 import com.revrobotics.CANSparkMax;
 import com.revrobotics.CANSparkMaxLowLevel.MotorType;
 
+import edu.wpi.first.networktables.BooleanSubscriber;
+import edu.wpi.first.networktables.NetworkTableEvent;
+import edu.wpi.first.networktables.NetworkTableInstance;
+import edu.wpi.first.networktables.StringPublisher;
 import edu.wpi.first.wpilibj.PS4Controller;
 import edu.wpi.first.wpilibj.TimedRobot;
+import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import frc.robot.Robot.Drive.*;
 
 /**
@@ -26,6 +33,13 @@ public class Robot extends TimedRobot {
   CANSparkMax rightDownCanSparkMax;
   CANSparkMax leftDownCanSparkMax;
   String motorControllerFile;
+  BooleanSubscriber raspberryWaiting;
+  StringPublisher raspberryInstructions;
+  int raspberryInstructionsListener;
+  BooleanSubscriber laptopWaiting;
+  StringPublisher laptopInstructions;
+  int laptopInstructionsListener;
+  StringPublisher robotIsOn;
   
   /**
    * This function is run when the robot is first started up and should be used for any
@@ -33,6 +47,19 @@ public class Robot extends TimedRobot {
    */
   @Override
   public void robotInit() {
+    NetworkTableInstance inst = NetworkTableInstance.getDefault();
+    inst.startClient4("team3692-frc2024");
+    inst.setServerTeam(3692, NetworkTableInstance.kDefaultPort4);
+    SmartDashboard.setNetworkTableInstance(inst);
+
+    raspberryWaiting = inst.getBooleanTopic("/raspberry/waiting").subscribe(false);
+    raspberryInstructions = inst.getStringTopic("/raspberry/instructions").publish();
+    
+    laptopWaiting = inst.getBooleanTopic("/laptop/waiting").subscribe(false);
+    laptopInstructions = inst.getStringTopic("/laptop/instructions").publish();
+    
+    robotIsOn = inst.getStringTopic("/robot/isOn").publish();
+
     myDriveController = new PS4Controller(Constants.driveControllerPort);
     leftUpCanSparkMax = new CANSparkMax(1, MotorType.kBrushless);
     rightUpCanSparkMax = new CANSparkMax(2, MotorType.kBrushless);
@@ -43,6 +70,44 @@ public class Robot extends TimedRobot {
     myMotorUpdater = new MotorUpdater(new MotorController(myDriveController, motorControllerFile), 
     new Motors(leftUpCanSparkMax, false, rightUpCanSparkMax, true, rightDownCanSparkMax, true, leftDownCanSparkMax, false), 
     false, motorControllerFile);
+
+    if(!raspberryWaiting.get()) {
+      raspberryInstructions.set("robotInit");
+      inst.flush();
+    } else {
+      BooleanSubscriber waiting = inst.getBooleanTopic("/raspberry/waiting").subscribe(false);
+
+      int waitListener = inst.addListener(inst.getTopic("/raspberry/waiting"), EnumSet.of(NetworkTableEvent.Kind.kValueAll), event -> {
+        if(event.is(NetworkTableEvent.Kind.kValueAll) && waiting.get()) {
+          raspberryInstructions.set("robotInit");
+          inst.flush();
+
+          waiting.close();
+          this.close();
+        }
+      });
+
+      waitListener = waitListener + 0;
+    }
+
+    if(!laptopWaiting.get()) {
+      laptopInstructions.set("robotInit");
+      inst.flush();
+    } else {
+      BooleanSubscriber waiting = inst.getBooleanTopic("/laptop/waiting").subscribe(false);
+
+      int waitListener = inst.addListener(inst.getTopic("/laptop/waiting"), EnumSet.of(NetworkTableEvent.Kind.kValueAll), event -> {
+        if(event.is(NetworkTableEvent.Kind.kValueAll) && waiting.get()) {
+          laptopInstructions.set("robotInit");
+          inst.flush();
+
+          waiting.close();
+          this.close();
+        }
+      });
+      
+      waitListener = waitListener + 0;
+    }
   }
 
   /**
@@ -77,6 +142,7 @@ public class Robot extends TimedRobot {
   @Override
   public void disabledInit() {
     myMotorUpdater.close();
+    SmartDashboard.putString("Raspberry Instructions", "Close");
   }
 
   /** This function is called periodically when disabled. */
@@ -91,11 +157,45 @@ public class Robot extends TimedRobot {
   @Override
   public void testPeriodic() {}
 
-  /** This function is called once when the robot is first started up. */
-  @Override
-  public void simulationInit() {}
+  public void instruct(String instructions) {
+    NetworkTableInstance inst = NetworkTableInstance.getDefault();
 
-  /** This function is called periodically whilst in simulation. */
-  @Override
-  public void simulationPeriodic() {}
+    if(!raspberryWaiting.get()) {
+      raspberryInstructions.set(instructions);
+      inst.flush();
+    } else {
+      BooleanSubscriber waiting = inst.getBooleanTopic("/raspberry/waiting").subscribe(false);
+
+      int waitListener = inst.addListener(inst.getTopic("/raspberry/waiting"), EnumSet.of(NetworkTableEvent.Kind.kValueAll), event -> {
+        if(event.is(NetworkTableEvent.Kind.kValueAll) && waiting.get()) {
+          raspberryInstructions.set(instructions);
+          inst.flush();
+
+          waiting.close();
+          this.close();
+        }
+      });
+
+      waitListener = waitListener + 0;
+    }
+
+    if(!laptopWaiting.get()) {
+      laptopInstructions.set(instructions);
+      inst.flush();
+    } else {
+      BooleanSubscriber waiting = inst.getBooleanTopic("/laptop/waiting").subscribe(false);
+
+      int waitListener = inst.addListener(inst.getTopic("/laptop/waiting"), EnumSet.of(NetworkTableEvent.Kind.kValueAll), event -> {
+        if(event.is(NetworkTableEvent.Kind.kValueAll) && waiting.get()) {
+          laptopInstructions.set(instructions);
+          inst.flush();
+
+          waiting.close();
+          this.close();
+        }
+      });
+      
+      waitListener = waitListener + 0;
+    }
+  }
 }

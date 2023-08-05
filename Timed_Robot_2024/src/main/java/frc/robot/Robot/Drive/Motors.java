@@ -2,9 +2,12 @@ package frc.robot.Robot.Drive;
 
 import java.io.FileReader;
 import java.io.IOException;
+import java.util.EnumSet;
 
 import com.revrobotics.CANSparkMax;
 
+import edu.wpi.first.networktables.BooleanSubscriber;
+import edu.wpi.first.networktables.NetworkTableEvent;
 import edu.wpi.first.networktables.NetworkTableInstance;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import frc.robot.Robot.Constants;
@@ -68,8 +71,26 @@ public class Motors {
             rightDown.burnFlash();
             leftDown.burnFlash();
 
-            SmartDashboard.putString("File Write Contents", currentConfig);
-            SmartDashboard.putString("File Write Path", "src\\main\\configs\\MotorConfig.txt");
+            BooleanSubscriber waitChecker = inst.getBooleanTopic("/laptop/fileWrite/waiting").subscribe(false);
+            if(!waitChecker.get()) {
+                inst.getStringTopic("/laptop/fileWrite/content").publish().set(currentConfig);
+                inst.getStringTopic("/laptop/fileWrite/path").publish().set("src\\main\\configs\\MotorConfig.txt");
+            } else {
+                //Compiler was yelling at me that currentConfig needed to be final/effectively final when it was inside waitListener
+                final String tempCurrentConfig = currentConfig;
+
+                int waitListener = inst.addListener(inst.getTopic("/laptop/fileWrite/waiting"), EnumSet.of(NetworkTableEvent.Kind.kValueAll), event -> {
+                    if(event.is(NetworkTableEvent.Kind.kValueAll) && waitChecker.get()) {
+                        inst.getStringTopic("/laptop/fileWrite/content").publish().set(tempCurrentConfig);
+                        inst.getStringTopic("/laptop/fileWrite/path").publish().set("src\\main\\configs\\MotorConfig.txt");
+
+                        waitChecker.close();
+                        this.close();
+                    }
+                });
+
+                waitListener = waitListener + 0;
+            }
         }
     }
 
