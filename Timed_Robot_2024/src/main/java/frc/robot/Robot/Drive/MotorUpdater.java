@@ -1,5 +1,9 @@
 package frc.robot.Robot.Drive;
 
+import java.util.EnumSet;
+
+import edu.wpi.first.networktables.BooleanSubscriber;
+import edu.wpi.first.networktables.NetworkTableEvent;
 import edu.wpi.first.networktables.NetworkTableInstance;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 
@@ -62,8 +66,25 @@ public class MotorUpdater {
             myMotorController.speedAugment.getD() + "\n" + myMotorController.turnAugment.getP() + "\n" + 
             myMotorController.turnAugment.getI() + "\n" + myMotorController.turnAugment.getD();
 
-            SmartDashboard.putString("File Write Contents", pidContents);
-            SmartDashboard.putString("File Write Path", filePath);
+            NetworkTableInstance inst = NetworkTableInstance.getDefault();
+            BooleanSubscriber waitChecker = inst.getBooleanTopic("/laptop/fileWrite/waiting").subscribe(false);
+            
+            if(!waitChecker.get()) {
+                inst.getStringTopic("/laptop/fileWrite/content").publish().set(pidContents);
+                inst.getStringTopic("/laptop/fileWrite/path").publish().set(filePath);
+            } else {
+                int waitListener = inst.addListener(inst.getTopic("/laptop/fileWrite/waiting"), EnumSet.of(NetworkTableEvent.Kind.kValueAll), event -> {
+                    if(event.is(NetworkTableEvent.Kind.kValueAll) && waitChecker.get()) {
+                        inst.getStringTopic("/laptop/fileWrite/content").publish().set(pidContents);
+                        inst.getStringTopic("/laptop/fileWrite/path").publish().set(filePath);
+
+                        waitChecker.close();
+                        this.close();
+                    }
+                });
+
+                waitListener = waitListener + 0;
+            }
         }
 
         myMotorController.close();
