@@ -9,6 +9,7 @@ import com.revrobotics.CANSparkMax;
 import edu.wpi.first.networktables.BooleanSubscriber;
 import edu.wpi.first.networktables.NetworkTableEvent;
 import edu.wpi.first.networktables.NetworkTableInstance;
+import edu.wpi.first.networktables.NetworkTableListener;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import frc.robot.Robot.Constants;
 
@@ -75,21 +76,22 @@ public class Motors {
             if(!waitChecker.get()) {
                 inst.getStringTopic("/laptop/fileWrite/content").publish().set(currentConfig);
                 inst.getStringTopic("/laptop/fileWrite/path").publish().set("src\\main\\configs\\MotorConfig.txt");
+                inst.flush();
             } else {
                 //Compiler was yelling at me that currentConfig needed to be final/effectively final when it was inside waitListener
                 final String tempCurrentConfig = currentConfig;
 
-                int waitListener = inst.addListener(inst.getTopic("/laptop/fileWrite/waiting"), EnumSet.of(NetworkTableEvent.Kind.kValueAll), event -> {
+                @SuppressWarnings("unused")
+                NetworkTableListener waitListener = NetworkTableListener.createListener(inst.getTopic("/laptop/fileWrite/waiting"), EnumSet.of(NetworkTableEvent.Kind.kValueAll), event -> {
                     if(event.is(NetworkTableEvent.Kind.kValueAll) && waitChecker.get()) {
                         inst.getStringTopic("/laptop/fileWrite/content").publish().set(tempCurrentConfig);
                         inst.getStringTopic("/laptop/fileWrite/path").publish().set("src\\main\\configs\\MotorConfig.txt");
+                        inst.flush();
 
                         waitChecker.close();
                         this.close();
                     }
                 });
-
-                waitListener = waitListener + 0;
             }
         }
     }

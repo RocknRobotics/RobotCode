@@ -5,6 +5,7 @@ import java.util.EnumSet;
 import edu.wpi.first.networktables.BooleanSubscriber;
 import edu.wpi.first.networktables.NetworkTableEvent;
 import edu.wpi.first.networktables.NetworkTableInstance;
+import edu.wpi.first.networktables.NetworkTableListener;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 
 public class MotorUpdater {
@@ -72,18 +73,19 @@ public class MotorUpdater {
             if(!waitChecker.get()) {
                 inst.getStringTopic("/laptop/fileWrite/content").publish().set(pidContents);
                 inst.getStringTopic("/laptop/fileWrite/path").publish().set(filePath);
+                inst.flush();
             } else {
-                int waitListener = inst.addListener(inst.getTopic("/laptop/fileWrite/waiting"), EnumSet.of(NetworkTableEvent.Kind.kValueAll), event -> {
+                @SuppressWarnings("unused")
+                NetworkTableListener waitListener = NetworkTableListener.createListener(inst.getTopic("/laptop/fileWrite/waiting"), EnumSet.of(NetworkTableEvent.Kind.kValueAll), event -> {
                     if(event.is(NetworkTableEvent.Kind.kValueAll) && waitChecker.get()) {
                         inst.getStringTopic("/laptop/fileWrite/content").publish().set(pidContents);
                         inst.getStringTopic("/laptop/fileWrite/path").publish().set(filePath);
+                        inst.flush();
 
                         waitChecker.close();
                         this.close();
                     }
                 });
-
-                waitListener = waitListener + 0;
             }
         }
 
