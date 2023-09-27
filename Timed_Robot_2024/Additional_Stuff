@@ -1,4 +1,4 @@
-1.  Add the following snippet to the build.gradle file
+//1.  Add the following snippet to the build.gradle file
 
 task compileLaptopLibraries(type: Jar) {
     manifest { attributes 'Main-Class': "frc.robot.Laptop.LaptopMain" }
