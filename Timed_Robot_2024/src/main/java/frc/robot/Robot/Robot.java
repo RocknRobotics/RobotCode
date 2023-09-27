@@ -34,8 +34,6 @@ public class Robot extends TimedRobot {
   CANSparkMax rightDownCanSparkMax;
   CANSparkMax leftDownCanSparkMax;
   String motorControllerFile;
-  BooleanSubscriber raspberryWaiting;
-  StringPublisher raspberryInstructions;
   BooleanSubscriber laptopWaiting;
   StringPublisher laptopInstructions;
   StringPublisher robotIsOn;
@@ -50,9 +48,6 @@ public class Robot extends TimedRobot {
     inst.startClient4("team3692-frc2024");
     inst.setServerTeam(3692, NetworkTableInstance.kDefaultPort4);
     SmartDashboard.setNetworkTableInstance(inst);
-
-    raspberryWaiting = inst.getBooleanTopic("/raspberry/waiting").subscribe(false);
-    raspberryInstructions = inst.getStringTopic("/raspberry/instructions").publish();
     
     laptopWaiting = inst.getBooleanTopic("/laptop/waiting").subscribe(false);
     laptopInstructions = inst.getStringTopic("/laptop/instructions").publish();
@@ -103,10 +98,7 @@ public class Robot extends TimedRobot {
 
   /** This function is called once when the robot is disabled. */
   @Override
-  public void disabledInit() {
-    myMotorUpdater.close();
-    SmartDashboard.putString("Raspberry Instructions", "Close");
-  }
+  public void disabledInit() {}
 
   /** This function is called periodically when disabled. */
   @Override
@@ -122,21 +114,6 @@ public class Robot extends TimedRobot {
 
   public void instruct(String instructions) {
     NetworkTableInstance inst = NetworkTableInstance.getDefault();
-
-    if(!raspberryWaiting.get()) {
-      raspberryInstructions.set(instructions);
-      inst.flush();
-    } else {
-      @SuppressWarnings("unused")
-      NetworkTableListener waitListener = NetworkTableListener.createListener(inst.getTopic("/raspberry/waiting"), EnumSet.of(NetworkTableEvent.Kind.kValueAll), event -> {
-        if(event.is(NetworkTableEvent.Kind.kValueAll) && raspberryWaiting.get()) {
-          raspberryInstructions.set(instructions);
-          inst.flush();
-
-          this.close();
-        }
-      });
-    }
 
     if(!laptopWaiting.get()) {
       laptopInstructions.set(instructions);
