@@ -1,1 +1,2 @@
-Make sure to do whatever is in the additional stuff file.
+I will update it tonight or tomorrow
+--Noah Sookraj, 11/9/2023
