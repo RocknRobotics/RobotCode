@@ -1,4 +1,5 @@
-Use this to detail what you are working on. For example:
+Use this to detail what you are working on.
 
-Will work on creating the swerve drive tomorrow and then update the README file afterwards to be organized better
---Noah Sookraj, 11/10/2023
+Will work either tonight or sunday on sending over relevant values to the laptop from roborio concerning the swerve drive via 
+Network Tables. Might offload the swerve drive calculations to the laptop? I'll check the viability of that.
+--Noah Sookraj, 11/11/2023
