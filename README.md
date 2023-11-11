@@ -1,4 +1,3 @@
-I will update it tonight or tomorrow
+Will update again Sunday with the stuff for the gradle file and anything else needed for running the laptop stuff and jetson stuff. Will work on swerve too.
 
-
---Noah Sookraj, 11/9/2023
+--Noah Sookraj, 11/10/23
