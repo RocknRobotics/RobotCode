@@ -1,10 +1,18 @@
 package frc.robot.RoboRio;
 
+import edu.wpi.first.wpilibj.PS4Controller;
 import edu.wpi.first.wpilibj.TimedRobot;
+import frc.robot.RoboRio.Swerve.SwerveMaster;
 
 public class Robot extends TimedRobot {
+  private PS4Controller driveController;
+  private SwerveMaster mySwerveMaster;
+  
   @Override
-  public void robotInit() {}
+  public void robotInit() {
+    driveController = new PS4Controller(Constants.driveControllerPort);
+    mySwerveMaster = new SwerveMaster();
+  }
 
   //Every 20ms
   @Override
@@ -17,7 +25,9 @@ public class Robot extends TimedRobot {
   public void autonomousPeriodic() {}
 
   @Override
-  public void teleopInit() {}
+  public void teleopInit() {
+    mySwerveMaster.update(driveController);
+  }
 
   @Override
   public void teleopPeriodic() {}

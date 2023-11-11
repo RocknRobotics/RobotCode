@@ -10,6 +10,11 @@ import edu.wpi.first.networktables.NetworkTableInstance;
 import edu.wpi.first.networktables.NetworkTableListener;
 import edu.wpi.first.networktables.StringSubscriber;
 
+/*
+The class is necessary since the roboRio isn't able to save changes to a file permanently (at least not as far as I know),
+and while the Jetson could, that would introduce further complications with synchronization. Therefore, it's easier to simply
+have this class listen for when, where, and what to update. Communicates using Network Tables
+*/
 public class FileUpdater {
     //Publishes true if the laptop is open to accepting a file, usually only false if it's currently writing
     BooleanPublisher accepting;
@@ -55,7 +60,7 @@ public class FileUpdater {
             }
         }); //end Listener construction
 
-        //I don't remember whether it's set to true by default or not
+        //I don't remember whether it's set to true by default or not so I'll just be safe
         accepting.set(true);
     }
 }
