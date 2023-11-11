@@ -1,3 +1,1 @@
-Will update again Sunday with the stuff for the gradle file and anything else needed for running the laptop stuff and jetson stuff. Will work on swerve too.
-
---Noah Sookraj, 11/10/23
+The folders go in the robot folder, replace the build.gradle with the one in here. Gradle tasks for the jetson are setup for windows machine that is network sharing a directory with the path C:/OrinNano and a folder in it called 'Code'. I'll add the anacrontab commands and any shell scripts I used on the Jetson once I have my hands on it.
