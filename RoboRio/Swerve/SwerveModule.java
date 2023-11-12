@@ -2,7 +2,6 @@ package frc.robot.RoboRio.Swerve;
 
 import com.ctre.phoenix6.hardware.TalonFX;
 
-import edu.wpi.first.math.controller.PIDController;
 import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.math.kinematics.SwerveModuleState;
 import frc.robot.RoboRio.Constants.talonConstants;
@@ -14,10 +13,6 @@ public class SwerveModule {
     private TalonFX driveTalon;
     private TalonFX turnTalon;
 
-    //Enables continious input I think? I'm writing this using another person's code as a guide---I'll mess around with changing
-    //this once we have the swerve drive built
-    private PIDController turnPIDController;
-
     public SwerveModule(int driveTalonID, int turnTalonID, boolean driveTalonInvert, boolean turnTalonInvert) {
         driveTalon = new TalonFX(driveTalonID);
         turnTalon = new TalonFX(turnTalonID);
@@ -28,9 +23,6 @@ public class SwerveModule {
         turnTalon.getVelocity().setUpdateFrequency(talonConstants.talonUpdateFrequency, 1d);
         driveTalon.getAcceleration().setUpdateFrequency(talonConstants.talonUpdateFrequency, 1d);
         turnTalon.getAcceleration().setUpdateFrequency(talonConstants.talonUpdateFrequency, 1d);
-
-        turnPIDController = new PIDController(turnConstants.kP, 0, 0);
-        turnPIDController.enableContinuousInput(-Math.PI, Math.PI);
     }
 
     //Returns a SwerveModuleState representation of this SwerveModule
@@ -38,19 +30,9 @@ public class SwerveModule {
         return new SwerveModuleState(this.getDriveVelocity(), new Rotation2d(this.getTurnPosition()));
     }
 
-    public void setState(SwerveModuleState targetState) {
-        if(Math.abs(targetState.speedMetersPerSecond) < driveConstants.stopBelowThisVelocity) {
-            this.stop();
-        } else {
-            targetState = SwerveModuleState.optimize(targetState, new Rotation2d(this.getTurnPosition()));
-            driveTalon.set(targetState.speedMetersPerSecond / (driveConstants.maxSpeed * driveConstants.metresPerRotation));
-            turnTalon.set(turnPIDController.calculate(this.getTurnPosition(), targetState.angle.getRadians()));
-        }
-    }
-
-    public void stop() {
-        driveTalon.set(0);
-        turnTalon.set(0);
+    public void set(double driveSet, double turnSet) {
+        driveTalon.set(driveSet);
+        turnTalon.set(turnSet);
     }
 
     //Metres position of the drive talon
