@@ -28,25 +28,32 @@ public class SwerveMaster {
     private AHRS accelerometer;
 
     @SuppressWarnings("unused")
+    //Listener for when the laptop outputs (inputs for rio) get updated
     private NetworkTableListener outputUpdateListener;
-    private BooleanEntry inputUpdateEntry;
+    //Publishes drive controller inputs (left joystick X, left joystick Y, right joystick X)
     private DoubleArrayPublisher controllerInputsPublisher;
+    //Publishes current drive velocities (metres/second)
     private DoubleArrayPublisher driveVelocitiesPublisher;
+    //Publishes current turn positions (radians)
     private DoubleArrayPublisher turnPositionsPublisher;
+    //Publishes reduced angle reported by accelerometer (degrees)
     private DoublePublisher reducedAnglePublisher;
+    //Reads when there's new values to set the motors to + tells laptop it's open to accepting new values
     private BooleanEntry outputUpdateEntry;
+    //Reads the values to set the drive motors to
     private DoubleArraySubscriber driveSetSubscriber;
+    //Reads the values to set the turn motors to
     private DoubleArraySubscriber turnSetSubscriber;
+    //Tells the laptop whether or not to reset the odometer with the Pose2d given below
     private BooleanPublisher resetOdometerPublisher;
+    //The Pose2d to use when reseting the odometer
     private DoubleArrayPublisher resetOdometerCurrentPosePublisher;
 
-    private NetworkTableInstance inst;
+    private NetworkTableInstance myInstance;
 
-    public SwerveMaster() {
-        inst = NetworkTableInstance.getDefault();
-        inst.startClient4("team3692-frc2024");
-        inst.setServerTeam(3692, NetworkTableInstance.kDefaultPort4);
-        
+    public SwerveMaster(NetworkTableInstance inst) {
+        myInstance = inst;
+
         leftUpModule = new SwerveModule(driveConstants.leftUpID, turnConstants.leftUpID, 
         driveConstants.leftUpInvert, turnConstants.leftUpInvert);
         leftDownModule = new SwerveModule(driveConstants.leftDownID, turnConstants.leftDownID, 
@@ -59,39 +66,34 @@ public class SwerveMaster {
         accelerometer = new AHRS(Port.kMXP, Constants.accelerometerUpdateFrequency);
         accelerometer.reset();
 
-        inputUpdateEntry = inst.getBooleanTopic("/laptop/swerve/update/input").getEntry(false);
-        controllerInputsPublisher = inst.getDoubleArrayTopic("/laptop/swerve/controller/inputs").publish();
-        driveVelocitiesPublisher = inst.getDoubleArrayTopic("/laptop/swerve/drive/velocities").publish();
-        turnPositionsPublisher = inst.getDoubleArrayTopic("/laptop/swerve/turn/positions").publish();
-        reducedAnglePublisher = inst.getDoubleTopic("/laptop/swerve/accelerometer/reducedAngle").publish();
+        //rio
+        controllerInputsPublisher = inst.getDoubleArrayTopic("/rio/swerve/controller/inputs").publish();
+        driveVelocitiesPublisher = inst.getDoubleArrayTopic("/rio/swerve/drive/velocities").publish();
+        turnPositionsPublisher = inst.getDoubleArrayTopic("/rio/swerve/turn/positions").publish();
+        reducedAnglePublisher = inst.getDoubleTopic("/rio/swerve/accelerometer/reducedAngle").publish();
+        resetOdometerCurrentPosePublisher = inst.getDoubleArrayTopic("/rio/swerve/odometer/currentPose").publish();
+        //Laptop side
         outputUpdateEntry = inst.getBooleanTopic("/laptop/swerve/update/output").getEntry(false);
         driveSetSubscriber = inst.getDoubleArrayTopic("/laptop/swerve/drive/set").subscribe(new double[]{0d, 0d, 0d, 0d});
         turnSetSubscriber = inst.getDoubleArrayTopic("/laptop/swerve/turn/set").subscribe(new double[]{0d, 0d, 0d, 0d});
         resetOdometerPublisher = inst.getBooleanTopic("/laptop/swerve/odometer/reset").publish();
-        resetOdometerCurrentPosePublisher = inst.getDoubleArrayTopic("/laptop/swerve/odometer/currentPose").publish();
 
+        //Listens on the event the outputs get updated
         outputUpdateListener = NetworkTableListener.createListener(inst.getBooleanTopic("/laptop/swerve/update/output"), EnumSet.of(NetworkTableEvent.Kind.kValueAll), event -> {
             if(event.is(NetworkTableEvent.Kind.kValueAll)) {
+                //This way it's not triggered by when it gets set to false
                 if(outputUpdateEntry.get()) {
                     set(driveSetSubscriber.get(), turnSetSubscriber.get());
                     outputUpdateEntry.set(false);
 
-                    inst.flush();
+                    myInstance.flush();
                 }
             }
         });
     }
 
-    public void update(PS4Controller controller) {
-        while(!inputUpdateEntry.get()) {
-            try {
-                Thread.sleep(10);
-            } catch(InterruptedException e) {
-                e.printStackTrace();
-            }
-        }
-
-        controllerInputsPublisher.set(new double[]{controller.getLeftX(), controller.getLeftY(), controller.getRightX()});
+    public void update(PS4Controller controller, double factor) {
+        controllerInputsPublisher.set(new double[]{controller.getLeftX() * factor, controller.getLeftY() * factor, controller.getRightX() * factor});
         driveVelocitiesPublisher.set(new double[]{leftUpModule.getDriveVelocity(), leftDownModule.getDriveVelocity(), 
         rightUpModule.getDriveVelocity(), rightDownModule.getDriveVelocity()});
         turnPositionsPublisher.set(new double[]{leftUpModule.getTurnPosition(), leftDownModule.getTurnPosition(), 
@@ -99,7 +101,7 @@ public class SwerveMaster {
         reducedAnglePublisher.set(this.getReducedAngle());
         outputUpdateEntry.set(false);
 
-        inst.flush();
+        myInstance.flush();
     }
 
     public void set(double[] driveSets, double[] turnSets) {
@@ -129,6 +131,6 @@ public class SwerveMaster {
         resetOdometerCurrentPosePublisher.set(new double[]{currX, currY, currAngle});
         resetOdometerPublisher.set(true);
 
-        inst.flush();
+        myInstance.flush();
     }
 }

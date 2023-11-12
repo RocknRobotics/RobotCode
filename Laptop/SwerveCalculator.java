@@ -1,7 +1,5 @@
 package frc.robot.Laptop;
 
-import java.util.EnumSet;
-
 import edu.wpi.first.math.controller.PIDController;
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Rotation2d;
@@ -14,27 +12,30 @@ import edu.wpi.first.networktables.BooleanEntry;
 import edu.wpi.first.networktables.DoubleArrayPublisher;
 import edu.wpi.first.networktables.DoubleArraySubscriber;
 import edu.wpi.first.networktables.DoubleSubscriber;
-import edu.wpi.first.networktables.NetworkTableEvent;
 import edu.wpi.first.networktables.NetworkTableInstance;
-import edu.wpi.first.networktables.NetworkTableListener;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import frc.robot.RoboRio.Constants;
 import frc.robot.RoboRio.Constants.talonConstants.driveConstants;
 import frc.robot.RoboRio.Constants.talonConstants.turnConstants;
 
 public class SwerveCalculator {
-    //Listener for when values are ready to be updated
-    @SuppressWarnings("unused")
-    private NetworkTableListener inputUpdateListener;
-    private BooleanEntry inputUpdateEntry;
+    //The inputs from the drive controller
     private DoubleArraySubscriber controllerInputsSubscriber;
+    //The current velocites of each of the swerve modules
     private DoubleArraySubscriber driveVelocitiesSubscriber;
+    //The current positions of the swerve modules
     private DoubleArraySubscriber turnPositionsSubscriber;
+    //The reduced angle reported by the accelerometer
     private DoubleSubscriber reducedAngleSubscriber;
+    //Publishes the values to set the drive Talons to
     private DoubleArrayPublisher driveSetPublisher;
+    //Publishes the values to set the turn Talons to
     private DoubleArrayPublisher turnSetPublisher;
+    //Reads whether or not there are currently update outputs waiting to be read (probably never needs to wait before sending)
     private BooleanEntry outputUpdateEntry;
+    //Reads whether or not to reset the odometer with the current Pose2d given below
     private BooleanEntry resetOdometerEntry;
+    //The Pose2d to reset the odometer using
     private DoubleArraySubscriber resetOdometerCurrentPoseSubscriber;
 
     private SwerveDriveOdometry odometer;
@@ -43,46 +44,80 @@ public class SwerveCalculator {
     //this once we have the swerve drive built
     private PIDController turnPIDController;
 
-    private NetworkTableInstance inst;
+    private NetworkTableInstance myInstance;
 
-    public SwerveCalculator() {
-        inst = NetworkTableInstance.getDefault();
-        inst.startClient4("team3692-frc2024");
-        inst.setServerTeam(3692, NetworkTableInstance.kDefaultPort4);
-        SmartDashboard.setNetworkTableInstance(inst);
+    public SwerveCalculator(NetworkTableInstance inst) {
+        myInstance = inst;
+        SmartDashboard.setNetworkTableInstance(myInstance);
 
-        inputUpdateEntry = inst.getBooleanTopic("/laptop/swerve/update/input").getEntry(false);
-        controllerInputsSubscriber = inst.getDoubleArrayTopic("/laptop/swerve/controller/inputs").subscribe(new double[]{0d, 0d, 0d});
-        driveVelocitiesSubscriber = inst.getDoubleArrayTopic("/laptop/swerve/drive/velocities").subscribe(new double[]{0d, 0d, 0d});
-        turnPositionsSubscriber = inst.getDoubleArrayTopic("/laptop/swerve/turn/positions").subscribe(new double[]{0d, 0d, 0d});
-        reducedAngleSubscriber = inst.getDoubleTopic("/laptop/swerve/accelerometer/reducedAngle").subscribe(0d);
-        driveSetPublisher = inst.getDoubleArrayTopic("/laptop/swerve/drive/set").publish();
-        turnSetPublisher = inst.getDoubleArrayTopic("/laptop/swerve/turn/set").publish();
-        outputUpdateEntry = inst.getBooleanTopic("/laptop/swerve/update/output").getEntry(false);
-        resetOdometerEntry = inst.getBooleanTopic("/laptop/swerve/odometer/reset").getEntry(false);
-        resetOdometerCurrentPoseSubscriber = inst.getDoubleArrayTopic("/laptop/swerve/odometer/reset/currentPose").subscribe(new double[]{0d, 0d, 0d});
-
-        inputUpdateListener = NetworkTableListener.createListener(inst.getBooleanTopic("/laptop/swerve/update/input"), EnumSet.of(NetworkTableEvent.Kind.kValueAll), event -> {
-            if(event.is(NetworkTableEvent.Kind.kValueAll)) {
-                if(inputUpdateEntry.get()) {
-                    if(resetOdometerEntry.get()) {
-                        resetOdometer(driveVelocitiesSubscriber.get(), turnPositionsSubscriber.get(), reducedAngleSubscriber.get(), new Pose2d(
-                            resetOdometerCurrentPoseSubscriber.get()[0], resetOdometerCurrentPoseSubscriber.get()[1], new Rotation2d(resetOdometerCurrentPoseSubscriber.get()[2])));
-                    }
-
-                    update(controllerInputsSubscriber.get(), driveVelocitiesSubscriber.get(), turnPositionsSubscriber.get(), reducedAngleSubscriber.get());
-
-                    inputUpdateEntry.set(false);
-                    inst.flush();
-                }
-            }
-        });
+        //Being a subscriber pretty much means it'll be rio side, since it's reading values from the rio
+        controllerInputsSubscriber = myInstance.getDoubleArrayTopic("/rio/swerve/controller/inputs").subscribe(new double[]{0d, 0d, 0d});
+        driveVelocitiesSubscriber = myInstance.getDoubleArrayTopic("/rio/swerve/drive/velocities").subscribe(new double[]{0d, 0d, 0d});
+        turnPositionsSubscriber = myInstance.getDoubleArrayTopic("/rio/swerve/turn/positions").subscribe(new double[]{0d, 0d, 0d});
+        reducedAngleSubscriber = myInstance.getDoubleTopic("/rio/swerve/accelerometer/reducedAngle").subscribe(0d);
+        resetOdometerCurrentPoseSubscriber = myInstance.getDoubleArrayTopic("/rio/swerve/odometer/reset/currentPose").subscribe(new double[]{0d, 0d, 0d});
+        //Laptop side publishers + entries
+        driveSetPublisher = myInstance.getDoubleArrayTopic("/laptop/swerve/drive/set").publish();
+        turnSetPublisher = myInstance.getDoubleArrayTopic("/laptop/swerve/turn/set").publish();
+        outputUpdateEntry = myInstance.getBooleanTopic("/laptop/swerve/update/output").getEntry(false);
+        resetOdometerEntry = myInstance.getBooleanTopic("/laptop/swerve/odometer/reset").getEntry(false);
 
         turnPIDController = new PIDController(turnConstants.kP, 0d, 0d);
         turnPIDController.enableContinuousInput(-Math.PI, Math.PI);
     }
 
-    public void update(double[] inputs, double[] velocities, double[] positions, double reducedAngle) {
+    public void robotInit() {}
+
+    public void robotPeriodic() {
+        //Update SmartDashboard with odometer values
+        Pose2d currPose = odometer.getPoseMeters();
+        SmartDashboard.putNumber("Odometer X", currPose.getX());
+        SmartDashboard.putNumber("Odometer Y", currPose.getY());
+        SmartDashboard.putNumber("Odometer Reduced Angle", Math.IEEEremainder(currPose.getRotation().getDegrees(), 360));
+    }
+
+    public void autonomousInit() {}
+
+    public void autonomousPeriodic() {}
+
+    public void teleopInit() {}
+
+    public void teleopPeriodic() {
+        if(resetOdometerEntry.get()) {
+            resetOdometer(driveVelocitiesSubscriber.get(), turnPositionsSubscriber.get(), reducedAngleSubscriber.get(), new Pose2d(
+                resetOdometerCurrentPoseSubscriber.get()[0], resetOdometerCurrentPoseSubscriber.get()[1], new Rotation2d(resetOdometerCurrentPoseSubscriber.get()[2])));
+            resetOdometerEntry.set(false);
+        }
+
+        teleopUpdate(controllerInputsSubscriber.get(), driveVelocitiesSubscriber.get(), turnPositionsSubscriber.get(), reducedAngleSubscriber.get());
+
+        myInstance.flush();
+    }
+
+    public void disabledInit() {
+        while(outputUpdateEntry.get()) {
+            try {
+                Thread.sleep(10);
+            } catch(InterruptedException e) {
+                e.printStackTrace();
+            }
+        }
+
+        driveSetPublisher.set(new double[]{0d, 0d, 0d, 0d});
+        turnSetPublisher.set(new double[]{0d, 0d, 0d, 0d});
+        outputUpdateEntry.set(true);
+
+        myInstance.flush();
+    }
+
+    public void disabledPeriodic() {}
+
+    public void testInit() {}
+
+    public void testPeriodic() {}
+
+    //Does the heavy lifting
+    public void teleopUpdate(double[] inputs, double[] velocities, double[] positions, double reducedAngle) {
         //Arrays to be published later
         double driveSets[] = new double[]{0d, 0d, 0d, 0d};
         double turnSets[] = new double[]{0d, 0d, 0d, 0d};
@@ -114,7 +149,7 @@ public class SwerveCalculator {
         }
 
         //Update odometry
-        Pose2d currPose = odometer.update(Rotation2d.fromDegrees(reducedAngle), new SwerveModulePosition[]{
+        odometer.update(Rotation2d.fromDegrees(reducedAngle), new SwerveModulePosition[]{
             new SwerveModulePosition(velocities[0], Rotation2d.fromRadians(positions[0])), 
             new SwerveModulePosition(velocities[1], Rotation2d.fromRadians(positions[1])), 
             new SwerveModulePosition(velocities[2], Rotation2d.fromRadians(positions[2])), 
@@ -128,10 +163,6 @@ public class SwerveCalculator {
                 e.printStackTrace();
             }
         }
-        //Update SmartDashboard with odometer values
-        SmartDashboard.putNumber("Odometer X", currPose.getX());
-        SmartDashboard.putNumber("Odometer Y", currPose.getY());
-        SmartDashboard.putNumber("Odometer Reduced Angle", Math.IEEEremainder(currPose.getRotation().getDegrees(), 360));
 
         //Update NetworkTable with new values
         driveSetPublisher.set(driveSets);

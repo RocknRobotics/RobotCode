@@ -11,30 +11,29 @@ import edu.wpi.first.networktables.NetworkTableListener;
 import edu.wpi.first.networktables.StringSubscriber;
 
 /*
-The class is necessary since the roboRio isn't able to save changes to a file permanently (at least not as far as I know),
-and while the Jetson could, that would introduce further complications with synchronization. Therefore, it's easier to simply
-have this class listen for when, where, and what to update. Communicates using Network Tables
-*/
+Only class without every method robo has? Basically only for file writing so doesn't make sense to. I think so anyways
+ */
 public class FileUpdater {
+    private NetworkTableInstance myInstance;
     //Publishes true if the laptop is open to accepting a file, usually only false if it's currently writing
-    BooleanPublisher accepting;
+    private BooleanPublisher accepting;
     //Gets the path of the file to write to
-    StringSubscriber path;
+    private StringSubscriber path;
     //Gets the content to write into the file
-    StringSubscriber content;
+    private StringSubscriber content;
     //A listener to listen to events in the network folder (all the above are files in the folder)
     //The folder is /laptop/fileUpdater/
-    NetworkTableListener fileUpdateListener;
+    @SuppressWarnings("unused")
+    private NetworkTableListener fileUpdateListener;
 
-    public FileUpdater() {
-        NetworkTableInstance inst = NetworkTableInstance.getDefault();
-        inst.startClient4("team3692-frc2024");
-        inst.setServerTeam(3692, NetworkTableInstance.kDefaultPort4);
+    public FileUpdater(NetworkTableInstance inst) {
+        myInstance = inst;
 
-        accepting = inst.getBooleanTopic("/laptop/fileUpdater/accepting").publish();
-        path = inst.getStringTopic("/laptop/fileUpdater/path").subscribe("");
-        content = inst.getStringTopic("/laptop/fileUpdater/content").subscribe("");
-        fileUpdateListener = NetworkTableListener.createListener(inst.getTopic("/laptop/fileUpdater"), EnumSet.of(NetworkTableEvent.Kind.kValueAll), event -> {
+        accepting = myInstance.getBooleanTopic("/laptop/fileUpdater/accepting").publish();
+        path = myInstance.getStringTopic("/laptop/fileUpdater/path").subscribe("");
+        content = myInstance.getStringTopic("/laptop/fileUpdater/content").subscribe("");
+
+        fileUpdateListener = NetworkTableListener.createListener(myInstance.getTopic("/laptop/fileUpdater"), EnumSet.of(NetworkTableEvent.Kind.kValueAll), event -> {
             //Despite the name kValueAll, it is only triggered when topic values are update (so either path or content is updated)
             //You might be saying, wait, shouldn't I check if path AND content changed
             //Generally, both path and content can be changed before the table is flushed
@@ -43,7 +42,7 @@ public class FileUpdater {
                 //No longer accepting
                 accepting.set(false);
                 //Push changes to table
-                inst.flush();
+                myInstance.flush();
 
                 try {
                     //Don't append---replace whatever is in the file
@@ -55,12 +54,12 @@ public class FileUpdater {
                 } finally {
                     //Accepting again
                     accepting.set(true);
-                    inst.flush();
+                    myInstance.flush();
                 }
             }
         }); //end Listener construction
 
-        //I don't remember whether it's set to true by default or not so I'll just be safe
+        //I don't remember whether it's set to true by default or not
         accepting.set(true);
     }
 }
