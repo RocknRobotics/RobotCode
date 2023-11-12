@@ -4,4 +4,4 @@ Timed Robot + swerve drive setup that plans to have communication between the ro
 
 Copy build.gradle and replace the default build.gradle file. Other folders go in the robot folder. There's still some things marked TODO (I think all it is is getting values like wheel diameter), so it won't work yet.
 
-If you're contributing, then please create a branch with you name and stage changes via a pull request. Reviewer is for everyone who absolutely must approve your code before it gets pushed. Assignee is for anyone you want to look over your code/suggest changes. Reviewers may also suggest changes if they find it to be beneficial---but overly "nitpicky" suggestions should be kept to the assignees
+Make sure to create a new branch and create a pull request when making changes. Reviewers are who you feel must review your code before the changes are accepted, and assignees are anyone you want to review your code before the changes are accepted, although they don't necessarily have to.
