@@ -9,6 +9,7 @@ import edu.wpi.first.networktables.NetworkTableEvent;
 import edu.wpi.first.networktables.NetworkTableInstance;
 import edu.wpi.first.networktables.NetworkTableListener;
 import edu.wpi.first.networktables.StringSubscriber;
+import frc.robot.RoboRio.Constants;
 
 public class JetsonMaster {
     private NetworkTableInstance myInstance;
@@ -21,16 +22,14 @@ public class JetsonMaster {
     //Acts as a psuedo priority queue
     private ArrayList<String> methodNames;
 
-    //Runs the threads by taking the first element of the above list
-    private Thread methodRunner;
-
     public JetsonMaster() {
         //Gets global default instance
         myInstance = NetworkTableInstance.getDefault();
         //Tells it to act as a NetworkTables 4 client with the given string identifying it
         myInstance.startClient4("jetson");
-        //Sets the team, and port4 tells it to use the default port for NetworkTables 4
-        myInstance.setServerTeam(3692, NetworkTableInstance.kDefaultPort4);
+        //Sets the server name to the laptopIPAddress (since that's the hostname), 
+        //and port4 tells it to use the default port for NetworkTables 4
+        myInstance.setServer(Constants.laptopIPAddress, NetworkTableInstance.kDefaultPort4);
 
         methodNames = new ArrayList<String>();
 
@@ -66,33 +65,29 @@ public class JetsonMaster {
             }
         });
 
-        //Thread to execute the methods in the order they're in the methodNames arrayList
-        methodRunner = new Thread(() -> {
-            while(true) {
-                while(methodNames.size() == 0) {
-                    try {
-                        Thread.sleep(10);
-                    } catch(InterruptedException e) {
-                        e.printStackTrace();
-                    }
-                }
-
+        while(7 == 7) {
+            while(methodNames.size() == 0) {
                 try {
-                    Method method = this.getClass().getDeclaredMethod(methodNames.remove(0), Void.class);
-
-                    try {
-                        method.invoke(this);
-                    } catch(IllegalAccessException e) {
-                        e.printStackTrace();
-                    } catch(InvocationTargetException d) {
-                        d.printStackTrace();
-                    }
-                } catch(NoSuchMethodException e) {
+                    Thread.sleep(10);
+                } catch(InterruptedException e) {
                     e.printStackTrace();
                 }
             }
-        });
-        methodRunner.start(); //TODO change priority? + change other configs?
+
+            try {
+                Method method = this.getClass().getDeclaredMethod(methodNames.remove(0), Void.class);
+
+                try {
+                    method.invoke(this);
+                } catch(IllegalAccessException e) {
+                    e.printStackTrace();
+                } catch(InvocationTargetException d) {
+                    d.printStackTrace();
+                }
+            } catch(NoSuchMethodException e) {
+                e.printStackTrace();
+            }
+        }
     }
 
     public void robotInit() {}

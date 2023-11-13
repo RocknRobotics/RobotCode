@@ -23,11 +23,14 @@ public class Robot extends TimedRobot {
   @Override
   public void robotInit() {
     //Gets global default instance
-    myInstance = NetworkTableInstance.getDefault();
-    //The robot acts as the server for the NetworkTable
-    myInstance.startServer();
-    //Tells SmartDashboard to use this myInstance as its NetworkTableInstance
-    SmartDashboard.setNetworkTableInstance(myInstance);
+      myInstance = NetworkTableInstance.getDefault();
+      //Tells it to act as a NetworkTables 4 client with the given string identifying it
+      myInstance.startClient4("rio");
+      //Sets the server name to the laptopIPAddress (since that's the hostname), 
+      //and port4 tells it to use the default port for NetworkTables 4
+      myInstance.setServer(Constants.laptopIPAddress, NetworkTableInstance.kDefaultPort4);
+      //Tells SmartDashboard to use myInstance as it's instance
+      SmartDashboard.setInstance(myInstance);
 
     currentMethodPublisher = myInstance.getStringTopic("/rio/currentMethod").publish();
     currentMethodPublisher.set("robotInit");
