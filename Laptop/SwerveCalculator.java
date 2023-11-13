@@ -48,8 +48,9 @@ public class SwerveCalculator {
 
     public SwerveCalculator(NetworkTableInstance inst) {
         myInstance = inst;
-        SmartDashboard.setNetworkTableInstance(myInstance);
+    }
 
+    public void create() {
         //Being a subscriber pretty much means it'll be rio side, since it's reading values from the rio
         controllerInputsSubscriber = myInstance.getDoubleArrayTopic("/rio/swerve/controller/inputs").subscribe(new double[]{0d, 0d, 0d});
         driveVelocitiesSubscriber = myInstance.getDoubleArrayTopic("/rio/swerve/drive/velocities").subscribe(new double[]{0d, 0d, 0d});
@@ -64,6 +65,19 @@ public class SwerveCalculator {
 
         turnPIDController = new PIDController(turnConstants.kP, 0d, 0d);
         turnPIDController.enableContinuousInput(-Math.PI, Math.PI);
+    }
+
+    public void close() {
+        controllerInputsSubscriber.close();
+        driveVelocitiesSubscriber.close();
+        turnPositionsSubscriber.close();
+        reducedAngleSubscriber.close();
+        resetOdometerCurrentPoseSubscriber.close();
+        driveSetPublisher.close();
+        turnSetPublisher.close();
+        outputUpdateEntry.close();
+        resetOdometerEntry.close();
+        turnPIDController.close();
     }
 
     public void robotInit() {}

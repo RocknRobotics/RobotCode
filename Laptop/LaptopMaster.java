@@ -16,6 +16,8 @@ public class LaptopMaster {
     private SwerveCalculator mySwerveCalculator;
 
     private NetworkTableInstance myInstance;
+    //Listens for when the rio connects/disconnects
+    private NetworkTableListener connectionChangeListener;
     //Listens for when a new method instruction is sent
     @SuppressWarnings("unused")
     private NetworkTableListener currentMethodListener;
@@ -25,14 +27,42 @@ public class LaptopMaster {
     //Acts as a psuedo priority queue
     private ArrayList<String> methodNames;
 
+    //This way it doesn't try and execute methods after closing
+    private boolean executeMethods;
+
     public LaptopMaster() {
         myInstance = NetworkTableInstance.getDefault();
         myInstance.startServer("networktables.json", "", NetworkTableInstance.kDefaultPort3, NetworkTableInstance.kDefaultPort4);
+        SmartDashboard.setNetworkTableInstance(myInstance);
 
+        //If you look in the classes you should see this doesn't do much aside from assign the instance for them to use
         myFileUpdater = new FileUpdater(myInstance);
         mySwerveCalculator = new SwerveCalculator(myInstance);
 
         methodNames = new ArrayList<String>();
+
+        //Need it to persist after rio dies, so we'll keep this listener in here instead of in the create method
+        connectionChangeListener = NetworkTableListener.createConnectionListener(myInstance, true, event -> {
+            if(event.is(NetworkTableEvent.Kind.kConnected)) {
+                String name = event.connInfo.remote_id;
+
+                if(name.equals("rio")) {
+                    this.create();
+                }
+            } else if(event.is(NetworkTableEvent.Kind.kDisconnected)) {
+                String name = event.connInfo.remote_id;
+
+                if(name.equals("rio")) {
+                    this.close();
+                }
+            }
+        });
+    }
+
+    public void create() {
+        executeMethods = true;
+        myFileUpdater.create();
+        mySwerveCalculator.create();
 
         currentMethodSubscriber = myInstance.getStringTopic("/rio/currentMethod").subscribe("default");
         currentMethodListener = NetworkTableListener.createListener(myInstance.getStringTopic("/rio/currentMethod"), EnumSet.of(NetworkTableEvent.Kind.kValueAll), event -> {
@@ -66,7 +96,9 @@ public class LaptopMaster {
             }
         });
 
-        while(7 == 7) {
+        //Start executing methods
+        while(executeMethods) {
+            //While I don't have a method
             while(methodNames.size() == 0) {
                 try {
                     Thread.sleep(10);
@@ -76,6 +108,7 @@ public class LaptopMaster {
             }
 
             try {
+                //Take the first element in the queue and get the method it points to
                 Method method = this.getClass().getDeclaredMethod(methodNames.remove(0), Void.class);
 
                 try {
@@ -89,6 +122,13 @@ public class LaptopMaster {
                 e.printStackTrace();
             }
         }
+    }
+
+    public void close() {
+        executeMethods = false;
+        methodNames.clear();
+        myFileUpdater.close();
+        mySwerveCalculator.close();
     }
 
     public void robotInit() {}

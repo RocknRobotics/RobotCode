@@ -6,6 +6,7 @@ import edu.wpi.first.wpilibj.PS4Controller;
 import edu.wpi.first.wpilibj.TimedRobot;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import frc.robot.RoboRio.Swerve.SwerveMaster;
+import frc.robot.RoboRio.Constants;
 
 public class Robot extends TimedRobot {
   //The PS4Controller for driving
@@ -23,14 +24,14 @@ public class Robot extends TimedRobot {
   @Override
   public void robotInit() {
     //Gets global default instance
-      myInstance = NetworkTableInstance.getDefault();
-      //Tells it to act as a NetworkTables 4 client with the given string identifying it
-      myInstance.startClient4("rio");
-      //Sets the server name to the laptopIPAddress (since that's the hostname), 
-      //and port4 tells it to use the default port for NetworkTables 4
-      myInstance.setServer(Constants.laptopIPAddress, NetworkTableInstance.kDefaultPort4);
-      //Tells SmartDashboard to use myInstance as it's instance
-      SmartDashboard.setInstance(myInstance);
+    myInstance = NetworkTableInstance.getDefault();
+    //Tells it to act as a NetworkTables 4 client with the given string identifying it
+    myInstance.startClient4("rio");
+    //Sets the server name to the laptopIPAddress (since that's the hostname), 
+    //and port4 tells it to use the default port for NetworkTables 4
+    myInstance.setServer(Constants.laptopIPAddress, NetworkTableInstance.kDefaultPort4);
+    //Tells SmartDashboard to use myInstance as it's instance
+    SmartDashboard.setInstance(myInstance);
 
     currentMethodPublisher = myInstance.getStringTopic("/rio/currentMethod").publish();
     currentMethodPublisher.set("robotInit");

@@ -28,7 +28,9 @@ public class FileUpdater {
 
     public FileUpdater(NetworkTableInstance inst) {
         myInstance = inst;
+    }
 
+    public void create() {
         accepting = myInstance.getBooleanTopic("/laptop/fileUpdater/accepting").publish();
         path = myInstance.getStringTopic("/laptop/fileUpdater/path").subscribe("");
         content = myInstance.getStringTopic("/laptop/fileUpdater/content").subscribe("");
@@ -59,7 +61,14 @@ public class FileUpdater {
             }
         }); //end Listener construction
 
-        //I don't remember whether it's set to true by default or not
         accepting.set(true);
+        myInstance.flush();
+    }
+
+    public void close() {
+        accepting.close();
+        path.close();
+        content.close();
+        fileUpdateListener.close();
     }
 }
