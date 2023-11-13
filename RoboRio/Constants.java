@@ -21,6 +21,8 @@ public final class Constants {
     public static final double maxAngularSpeed = 1d; //TODO
     //The port the drive controller is connected to
     public static final int driveControllerPort = 0;
+    //The IP address of the laptop when it's connected to the network
+    public static final String laptopIPAddress = "";
 
     public static final class talonConstants {
         //Update rate of the talons' position/velocity/acceleration in Hz 

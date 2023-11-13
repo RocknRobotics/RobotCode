@@ -25,16 +25,9 @@ public class LaptopMaster {
     //Acts as a psuedo priority queue
     private ArrayList<String> methodNames;
 
-    //Runs the threads by taking the first element of the above list
-    private Thread methodRunner;
-
     public LaptopMaster() {
-        //Gets global default instance
         myInstance = NetworkTableInstance.getDefault();
-        //Tells it to act as a NetworkTables 4 client with the given string identifying it
-        myInstance.startClient4("laptop");
-        //Sets the team, and port4 tells it to use the default port for NetworkTables 4
-        myInstance.setServerTeam(3692, NetworkTableInstance.kDefaultPort4);
+        myInstance.startServer("networktables.json", "", NetworkTableInstance.kDefaultPort3, NetworkTableInstance.kDefaultPort4);
 
         myFileUpdater = new FileUpdater(myInstance);
         mySwerveCalculator = new SwerveCalculator(myInstance);
@@ -73,33 +66,29 @@ public class LaptopMaster {
             }
         });
 
-        //Thread to execute the methods in the order they're in the methodNames arrayList
-        methodRunner = new Thread(() -> {
-            while(true) {
-                while(methodNames.size() == 0) {
-                    try {
-                        Thread.sleep(10);
-                    } catch(InterruptedException e) {
-                        e.printStackTrace();
-                    }
-                }
-
+        while(7 == 7) {
+            while(methodNames.size() == 0) {
                 try {
-                    Method method = this.getClass().getDeclaredMethod(methodNames.remove(0), Void.class);
-
-                    try {
-                        method.invoke(this);
-                    } catch(IllegalAccessException e) {
-                        e.printStackTrace();
-                    } catch(InvocationTargetException d) {
-                        d.printStackTrace();
-                    }
-                } catch(NoSuchMethodException e) {
+                    Thread.sleep(10);
+                } catch(InterruptedException e) {
                     e.printStackTrace();
                 }
             }
-        });
-        methodRunner.start(); //TODO change priority? + change other configs?
+
+            try {
+                Method method = this.getClass().getDeclaredMethod(methodNames.remove(0), Void.class);
+
+                try {
+                    method.invoke(this);
+                } catch(IllegalAccessException e) {
+                    e.printStackTrace();
+                } catch(InvocationTargetException d) {
+                    d.printStackTrace();
+                }
+            } catch(NoSuchMethodException e) {
+                e.printStackTrace();
+            }
+        }
     }
 
     public void robotInit() {}
