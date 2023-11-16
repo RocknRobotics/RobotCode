@@ -23,6 +23,8 @@ public class JetsonMaster {
     //Will be used to keep sort of the methods to run
     //Acts as a psuedo priority queue
     private ArrayList<String> methodNames;
+    //The index of the where to insert the next init method (AKA the index after the last init method)
+    private int lastInitMethodIndex;
 
     private boolean executeMethods;
 
@@ -37,6 +39,7 @@ public class JetsonMaster {
         SmartDashboard.setNetworkTableInstance(myInstance);
 
         methodNames = new ArrayList<String>();
+        lastInitMethodIndex = 0;
 
         //Need it to persist after rio dies, so we'll keep this listener in here instead of in the create method
         connectionChangeListener = NetworkTableListener.createConnectionListener(myInstance, true, event -> {
@@ -64,29 +67,41 @@ public class JetsonMaster {
             if(event.is(NetworkTableEvent.Kind.kValueAll)) {
                 //In case the method changes for whatever reason
                 String temp = currentMethodSubscriber.get();
-                //Checks if the method is already in the list
-                boolean notIn = true;
+                boolean isInit = temp.endsWith("Init");
 
-                for(String method: methodNames) {
-                    if(method.equals(temp)) {
-                        notIn = false;
-                    }
-                }
-
-                if(notIn) {
-                    //If the method is an initialization method
-                    if(temp.endsWith("Init")) {
-                        //Remove all periodic methods
-                        for(int i = methodNames.size() - 1; i >= 0; i--) {
-                            if(methodNames.get(i).endsWith("Periodic")) {
-                                methodNames.remove(i);
-                            } else {
-                                break;
-                            }
+                if(isInit) {
+                    //Checks if the initialization function is already queued up
+                    //If it is, change it to the end of the init functions
+                    for(int i = 0; i < lastInitMethodIndex; i++) {
+                        if(methodNames.get(i).equals(temp)) {
+                            methodNames.remove(i);
+                            lastInitMethodIndex--;
+                            break;
                         }
                     }
-                    //Either way add the new function at the end, regardless of if it's an initialization or periodic function
-                    methodNames.add(temp);
+
+                    //Add the init function
+                    methodNames.add(lastInitMethodIndex, temp);
+                    lastInitMethodIndex++;
+                        
+                    //Remove the periodic functions after it
+                    for(int i = methodNames.size() - 1; i >= lastInitMethodIndex; i--) {
+                        methodNames.remove(i);
+                    }
+                } else {
+                    //Checks if the method is already in the list
+                    boolean notIn = true;
+
+                    for(int i = lastInitMethodIndex; i < methodNames.size(); i++) {
+                        if(methodNames.get(i).equals(temp)) {
+                            notIn = false;
+                            break;
+                        }
+                    }
+
+                    if(notIn) {
+                        methodNames.add(temp);
+                    }
                 }
             }
         });
@@ -103,8 +118,14 @@ public class JetsonMaster {
             }
 
             try {
+                String temp = methodNames.remove(0);
+
+                if(temp.endsWith("Init")) {
+                    lastInitMethodIndex--;
+                }
+
                 //Take the first element in the queue and get the method it points to
-                Method method = this.getClass().getDeclaredMethod(methodNames.remove(0), Void.class);
+                Method method = this.getClass().getDeclaredMethod(temp, Void.class);
 
                 try {
                     method.invoke(this);
