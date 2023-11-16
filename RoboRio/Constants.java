@@ -23,6 +23,8 @@ public final class Constants {
     public static final int driveControllerPort = 0;
     //The IP address of the laptop when it's connected to the network
     public static final String laptopIPAddress = "";
+    //The max acceleration to use for trajectory generation in metres/(second^2)
+    public static final double maxAcceleration = 1d;
 
     public static final class talonConstants {
         //Update rate of the talons' position/velocity/acceleration in Hz 
