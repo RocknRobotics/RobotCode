@@ -69,15 +69,27 @@ public class SwerveCalculator {
 
     public void close() {
         controllerInputsSubscriber.close();
+        controllerInputsSubscriber = null;
         driveVelocitiesSubscriber.close();
+        driveVelocitiesSubscriber = null;
         turnPositionsSubscriber.close();
+        turnPositionsSubscriber = null;
         reducedAngleSubscriber.close();
+        reducedAngleSubscriber = null;
         resetOdometerCurrentPoseSubscriber.close();
+        resetOdometerCurrentPoseSubscriber = null;
         driveSetPublisher.close();
+        driveSetPublisher = null;
         turnSetPublisher.close();
+        turnSetPublisher = null;
         outputUpdateEntry.close();
+        outputUpdateEntry = null;
         resetOdometerEntry.close();
+        resetOdometerEntry = null;
         turnPIDController.close();
+        turnPIDController = null;
+
+        odometer = null;
     }
 
     public void robotInit() {}

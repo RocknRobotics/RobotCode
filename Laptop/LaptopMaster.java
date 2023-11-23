@@ -9,14 +9,16 @@ import edu.wpi.first.networktables.NetworkTableInstance;
 import edu.wpi.first.networktables.NetworkTableEvent;
 import edu.wpi.first.networktables.NetworkTableListener;
 import edu.wpi.first.networktables.StringSubscriber;
+import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 
 public class LaptopMaster {
-    @SuppressWarnings("unused")
     private FileUpdater myFileUpdater;
     private SwerveCalculator mySwerveCalculator;
+    private TrajectoryHelper myTrajectoryHelper;
 
     private NetworkTableInstance myInstance;
     //Listens for when the rio connects/disconnects
+    @SuppressWarnings("unused")
     private NetworkTableListener connectionChangeListener;
     //Listens for when a new method instruction is sent
     @SuppressWarnings("unused")
@@ -40,6 +42,7 @@ public class LaptopMaster {
         //If you look in the classes you should see this doesn't do much aside from assign the instance for them to use
         myFileUpdater = new FileUpdater(myInstance);
         mySwerveCalculator = new SwerveCalculator(myInstance);
+        myTrajectoryHelper = new TrajectoryHelper(myInstance);
 
         methodNames = new ArrayList<String>();
         lastInitMethodIndex = 0;
@@ -66,6 +69,7 @@ public class LaptopMaster {
         executeMethods = true;
         myFileUpdater.create();
         mySwerveCalculator.create();
+        myTrajectoryHelper.create();
 
         currentMethodSubscriber = myInstance.getStringTopic("/rio/currentMethod").subscribe("default");
         currentMethodListener = NetworkTableListener.createListener(myInstance.getStringTopic("/rio/currentMethod"), EnumSet.of(NetworkTableEvent.Kind.kValueAll), event -> {
@@ -151,6 +155,7 @@ public class LaptopMaster {
         lastInitMethodIndex = 0;
         myFileUpdater.close();
         mySwerveCalculator.close();
+        myTrajectoryHelper.close();
     }
 
     public void robotInit() {}

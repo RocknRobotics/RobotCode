@@ -9,11 +9,13 @@ import edu.wpi.first.networktables.NetworkTableEvent;
 import edu.wpi.first.networktables.NetworkTableInstance;
 import edu.wpi.first.networktables.NetworkTableListener;
 import edu.wpi.first.networktables.StringSubscriber;
+import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import frc.robot.RoboRio.Constants;
 
 public class JetsonMaster {
     private NetworkTableInstance myInstance;
     //Listens for when the rio connects/disconnects
+    @SuppressWarnings("unused")
     private NetworkTableListener connectionChangeListener;
     //Listens for when a new method instruction is sent
     @SuppressWarnings("unused")
@@ -142,6 +144,9 @@ public class JetsonMaster {
 
     public void close() {
         executeMethods = false;
+        methodNames.clear();
+        methodNames = null;
+        lastInitMethodIndex = 0;
     }
 
     public void robotInit() {}
