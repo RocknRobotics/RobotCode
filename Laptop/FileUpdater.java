@@ -67,12 +67,8 @@ public class FileUpdater {
 
     public void close() {
         accepting.close();
-        accepting = null;
         path.close();
-        path = null;
         content.close();
-        content = null;
         fileUpdateListener.close();
-        fileUpdateListener = null;
     }
 }

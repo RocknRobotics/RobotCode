@@ -145,7 +145,6 @@ public class JetsonMaster {
     public void close() {
         executeMethods = false;
         methodNames.clear();
-        methodNames = null;
         lastInitMethodIndex = 0;
     }
 
