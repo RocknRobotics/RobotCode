@@ -13,18 +13,50 @@ Stuff to do later:
 public final class Constants {
     //The diamatre (in metres) of the wheels for driving
     public static final double driveWheelDiameter = 1d; //TODO
+    
     //Update rate of the accelerometer, in Hz (range 4-200)
     public static final byte accelerometerUpdateFrequency = 50;
+
     //The physical max speed the robot can move in metres/second
     public static final double maxTranslationalSpeed = 1d; //TODO
     //The physical max speed the robot can rotate in radians/second
     public static final double maxAngularSpeed = 1d; //TODO
+
     //The port the drive controller is connected to
-    public static final int driveControllerPort = 0;
+    public static final int driveControllerPort = 0; //TODO
     //The IP address of the laptop when it's connected to the network
-    public static final String laptopIPAddress = "";
+    public static final String laptopIPAddress = ""; //TODO
+
     //The max acceleration to use for trajectory generation in metres/(second^2)
-    public static final double maxAcceleration = 1d;
+    public static final double maxAcceleration = 1d; //TODO
+
+    //The width of the robot left to right in metres
+    public static final double robotWidth = 0d; //TODO
+    //The height of the robot top to bottom in metres
+    public static final double robotHeight = 0d; //TODO
+
+    //IMPORTANT: Treat all coordinates with respect to left corner of the blue alliance (that is, assume the origin to be that corner
+    //The minimum x values of each of the out of bounds areas, metres
+    public static final double outXMin[] = new double[]{};
+    //The minimum y values of each of the out of bounds areas, metres
+    public static final double outYMin[] = new double[]{};
+    //The maximum x values of each of the out of bounds areas, metres
+    public static final double outXMax[] = new double[]{};
+    //The maximum y values of each of the out of bounds areas, metres
+    public static final double outYMax[] = new double[]{};
+    //The maximum x value of what constitutes the in bounds area, treating the minimum x value as 0 (so essentially the length/width)
+    //Metres
+    public static final double inXMax = 0d;
+    //The maximum y value of what constitutes the in bounds area, treating the minimum y value as 0 (so essentially the length/width)
+    //Metres
+    public static final double inYMax = 0d;
+
+    //The number of points to initialize in the masterpoints array in the x direction
+    public static final int xSteps = 0;
+    //The number of points to initialize in the masterpoints array in the y direction
+    public static final int ySteps = 0;
+    //Whether or not to use bounds when calculating nodes
+    public static final boolean useNodeBounds = true;
 
     public static final class talonConstants {
         //Update rate of the talons' position/velocity/acceleration in Hz 

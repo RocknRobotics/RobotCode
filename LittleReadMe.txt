@@ -1,4 +1,4 @@
 Use this to detail what you are working on or suggestions on what you think we should implement.
 
-Plan to work on path generation and following. May not get anything done until the weekend though.
---Noah Sookraj, 11/13/2023
+Finished most of the trajectory generation, I will fix up a couple things such as explicitly nullifying tomorrow.
+--Noah Sookraj, 11/22/2023

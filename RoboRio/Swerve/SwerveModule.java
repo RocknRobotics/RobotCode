@@ -9,7 +9,7 @@ import frc.robot.RoboRio.Constants.talonConstants.*;
 
 //The class is used to represent a drive talon and turn talon that are part of one the swerve modules
 public class SwerveModule {
-    //The TalonFX motors---they have built-in encoders, so no need to create encoder objects
+    //The Talon500 motors---they have built-in encoders, so no need to create encoder objects
     private TalonFX driveTalon;
     private TalonFX turnTalon;
 
