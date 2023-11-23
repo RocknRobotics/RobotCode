@@ -1,14 +1,10 @@
 package frc.robot.RoboRio;
 
+import edu.wpi.first.math.geometry.Pose2d;
+import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.math.geometry.Translation2d;
 import edu.wpi.first.math.kinematics.SwerveDriveKinematics;
-
-/*
-Stuff to do later:
---Mess around with changing kP---Maybe introduce kD and/or kI?
---Determine a good talonConstants/driveConstants/stopBelowThisVelocity value
---Change accelerometer/talon update frequency? May reach limit of usefulness depending on how often loops are executed
-*/
+import edu.wpi.first.math.trajectory.TrapezoidProfile;
 
 public final class Constants {
     //The diamatre (in metres) of the wheels for driving
@@ -27,36 +23,10 @@ public final class Constants {
     //The IP address of the laptop when it's connected to the network
     public static final String laptopIPAddress = ""; //TODO
 
-    //The max acceleration to use for trajectory generation in metres/(second^2)
-    public static final double maxAcceleration = 1d; //TODO
-
     //The width of the robot left to right in metres
     public static final double robotWidth = 0d; //TODO
     //The height of the robot top to bottom in metres
     public static final double robotHeight = 0d; //TODO
-
-    //IMPORTANT: Treat all coordinates with respect to left corner of the blue alliance (that is, assume the origin to be that corner
-    //The minimum x values of each of the out of bounds areas, metres
-    public static final double outXMin[] = new double[]{};
-    //The minimum y values of each of the out of bounds areas, metres
-    public static final double outYMin[] = new double[]{};
-    //The maximum x values of each of the out of bounds areas, metres
-    public static final double outXMax[] = new double[]{};
-    //The maximum y values of each of the out of bounds areas, metres
-    public static final double outYMax[] = new double[]{};
-    //The maximum x value of what constitutes the in bounds area, treating the minimum x value as 0 (so essentially the length/width)
-    //Metres
-    public static final double inXMax = 0d;
-    //The maximum y value of what constitutes the in bounds area, treating the minimum y value as 0 (so essentially the length/width)
-    //Metres
-    public static final double inYMax = 0d;
-
-    //The number of points to initialize in the masterpoints array in the x direction
-    public static final int xSteps = 0;
-    //The number of points to initialize in the masterpoints array in the y direction
-    public static final int ySteps = 0;
-    //Whether or not to use bounds when calculating nodes
-    public static final boolean useNodeBounds = true;
 
     public static final class talonConstants {
         //Update rate of the talons' position/velocity/acceleration in Hz 
@@ -65,7 +35,7 @@ public final class Constants {
 
         public static final class turnConstants {
             //PID controller position constant
-            public static final double kP = 0.5;
+            public static final double kP = 0.5; //Change this?
             //Gear ratio between the turn talons and the module?
             public static final double gearRatio = 1d / 1d; //TODO
             //The amount of radians per rotation of the turn talon (Size of "wheel" being rotated doesn't matter---One full rotation
@@ -93,7 +63,7 @@ public final class Constants {
             //The amount of metres traveled per rotation of the drive talon (Circumference of wheel * wheel rotation per talon rotation)
             public static final double metresPerRotation = gearRatio * driveWheelDiameter * Math.PI;
             //Units in metres/second, the velocity below which the swerve module motors will stop instead of going to a desired state
-            public static final double stopBelowThisVelocity = 0.001d;
+            public static final double stopBelowThisVelocity = 0.001d; //Make it higher? Or is it good?
             //The physical max speed in rotations/second of the drive talons
             public static final double maxSpeed = 1d; //TODO
 
@@ -121,5 +91,47 @@ public final class Constants {
                 new Translation2d(upToDownDistanceMetres / 2d, leftToRightDistanceMetres / 2d), 
                 new Translation2d(-upToDownDistanceMetres / 2d, leftToRightDistanceMetres / 2d));
         }
+    }
+
+    public static final class TrajectoryConstants {
+        //The max (translational) acceleration to use for trajectory generation in metres/(second^2)
+        public static final double maxTranslationalAcceleration = 1d; //TODO
+        //The max angular acceleration to use in the drive controller constraints (see below) (radians/(second^2))
+        public static final double maxAngularAcceleration = 1d; //TODO
+
+        //IMPORTANT: Treat all coordinates with respect to left corner of the blue alliance (that is, assume the origin to be that corner
+        //The minimum x values of each of the out of bounds areas, metres
+        public static final double outXMin[] = new double[]{}; //TODO
+        //The minimum y values of each of the out of bounds areas, metres
+        public static final double outYMin[] = new double[]{}; //TODO
+        //The maximum x values of each of the out of bounds areas, metres
+        public static final double outXMax[] = new double[]{}; //TODO
+        //The maximum y values of each of the out of bounds areas, metres
+        public static final double outYMax[] = new double[]{}; //TODO
+        //The maximum x value of what constitutes the in bounds area, treating the minimum x value as 0 (so essentially the length/width)
+        //Metres
+        public static final double inXMax = 0d; //TODO
+        //The maximum y value of what constitutes the in bounds area, treating the minimum y value as 0 (so essentially the length/width)
+        //Metres
+        public static final double inYMax = 0d; //TODO
+
+        //The number of points to initialize in the masterpoints array in the x direction
+        public static final int xSteps = 100; //Mess around with this? Not sure how high we can/should go
+        //The number of points to initialize in the masterpoints array in the y direction
+        public static final int ySteps = 100;
+        //Whether or not to use bounds when calculating nodes
+        public static final boolean useNodeBounds = true; //Set to false?
+
+        //The tolerance for determining whether or not the controller is at a given reference point (metres, metres, radians)
+        public static final Pose2d controllerTolerance = new Pose2d(0d, 0d, new Rotation2d(0d)); //TODO
+        //PID stuff for the holonomic drive controller
+        //The kp, ki, and kd to use for the x part of the controller
+        public static final double kX[] = new double[]{0d, 0d, 0d}; //TODO
+        //Above but for the y part
+        public static final double kY[] = new double[]{0d, 0d, 0d}; //TODO
+        //Above for angle plus a trapezoidal constraints since it needs that too for the angle apparently
+        public static final double kAngle[] = new double[]{0d, 0d, 0d}; //TODO
+        //The trapezoidal angle constraints
+        public static final TrapezoidProfile.Constraints angleConstraints = new TrapezoidProfile.Constraints(maxAngularSpeed, maxAngularAcceleration);
     }
 }

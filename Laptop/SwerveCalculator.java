@@ -69,25 +69,15 @@ public class SwerveCalculator {
 
     public void close() {
         controllerInputsSubscriber.close();
-        controllerInputsSubscriber = null;
         driveVelocitiesSubscriber.close();
-        driveVelocitiesSubscriber = null;
         turnPositionsSubscriber.close();
-        turnPositionsSubscriber = null;
         reducedAngleSubscriber.close();
-        reducedAngleSubscriber = null;
         resetOdometerCurrentPoseSubscriber.close();
-        resetOdometerCurrentPoseSubscriber = null;
         driveSetPublisher.close();
-        driveSetPublisher = null;
         turnSetPublisher.close();
-        turnSetPublisher = null;
         outputUpdateEntry.close();
-        outputUpdateEntry = null;
         resetOdometerEntry.close();
-        resetOdometerEntry = null;
         turnPIDController.close();
-        turnPIDController = null;
 
         odometer = null;
     }
@@ -147,7 +137,7 @@ public class SwerveCalculator {
         //Arrays to be published later
         double driveSets[] = new double[]{0d, 0d, 0d, 0d};
         double turnSets[] = new double[]{0d, 0d, 0d, 0d};
-        //Converts PS4 joystick inputs into field-relative speeds
+        //Converts PS4 joystick inputs (field relative) into robot-relative speeds
         ChassisSpeeds speeds = ChassisSpeeds.fromFieldRelativeSpeeds(inputs[0] * Constants.maxTranslationalSpeed, 
         inputs[1] * Constants.maxTranslationalSpeed, inputs[2] * Constants.maxTranslationalSpeed, Rotation2d.fromDegrees(reducedAngle));
         //Converts those speeds to targetStates since I'm not a monster who puts everything on one line (I had to resist the urge to)

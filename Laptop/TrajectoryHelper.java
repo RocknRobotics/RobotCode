@@ -3,8 +3,13 @@ package frc.robot.Laptop;
 import java.util.ArrayList;
 import java.util.List;
 
+import edu.wpi.first.math.controller.HolonomicDriveController;
+import edu.wpi.first.math.controller.PIDController;
+import edu.wpi.first.math.controller.ProfiledPIDController;
 import edu.wpi.first.math.geometry.Pose2d;
+import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.math.geometry.Translation2d;
+import edu.wpi.first.math.kinematics.ChassisSpeeds;
 import edu.wpi.first.math.trajectory.Trajectory;
 import edu.wpi.first.math.trajectory.TrajectoryConfig;
 import edu.wpi.first.math.trajectory.TrajectoryGenerator;
@@ -21,6 +26,12 @@ public class TrajectoryHelper {
     //Second if the above but for y steps
     //Third is length two and contains the x value then y value in metres associated with that point
     private double masterpoints[][][];
+    //The current Trajectory to follow
+    private Trajectory myTrajectory;
+    //The time that the Trajectory started at
+    private double trajectoryStartTime;
+    //Controller for following the Trajectory
+    private HolonomicDriveController myHolonomicDriveController;
 
     public TrajectoryHelper(NetworkTableInstance inst) {
         myInstance = inst;
@@ -29,14 +40,53 @@ public class TrajectoryHelper {
     public void create() {
         for(int r = 0; r < masterpoints.length; r++) {
             for(int c = 0; c < masterpoints.length; c++) {
-                masterpoints[r][c][0] = (Constants.inXMax / (Constants.xSteps + 2)) * (r + 1);
-                masterpoints[r][c][1] = (Constants.inYMax / (Constants.ySteps + 2)) * (c + 1);
+                masterpoints[r][c][0] = (Constants.TrajectoryConstants.inXMax / (Constants.TrajectoryConstants.xSteps + 2)) * (r + 1);
+                masterpoints[r][c][1] = (Constants.TrajectoryConstants.inYMax / (Constants.TrajectoryConstants.ySteps + 2)) * (c + 1);
             }
         }
+
+        ProfiledPIDController temp = new ProfiledPIDController(Constants.TrajectoryConstants.kAngle[0], Constants.TrajectoryConstants.kAngle[1], Constants.TrajectoryConstants.kAngle[2], Constants.TrajectoryConstants.angleConstraints);
+        temp.enableContinuousInput(-Math.PI, Math.PI);
+
+        myHolonomicDriveController = new HolonomicDriveController(new PIDController(Constants.TrajectoryConstants.kX[0], Constants.TrajectoryConstants.kX[1], Constants.TrajectoryConstants.kX[2]), 
+        new PIDController(Constants.TrajectoryConstants.kY[0], Constants.TrajectoryConstants.kY[1], Constants.TrajectoryConstants.kY[2]), temp);
+        myHolonomicDriveController.setTolerance(Constants.TrajectoryConstants.controllerTolerance);
     }
 
     public void close() {
         masterpoints = null;
+        myTrajectory = null;
+        myHolonomicDriveController.getXController().close();
+        myHolonomicDriveController.getYController().close();
+        myHolonomicDriveController = null;
+    }
+
+    public boolean atReference() {
+        return myHolonomicDriveController.atReference();
+    }
+
+    public ChassisSpeeds getChassisSpeeds(Pose2d currentPose, double currTime, Rotation2d targetHeading) {
+        return myHolonomicDriveController.calculate(currentPose, getState(currTime), targetHeading);
+    }
+
+    public ChassisSpeeds getChassisSpeeds(Pose2d currentPose, Trajectory.State targetState, Rotation2d targetHeading) {
+        return myHolonomicDriveController.calculate(currentPose, targetState, targetHeading);
+    }
+
+    public void setTrajectory(Trajectory aTrajectory) {
+        myTrajectory = aTrajectory;
+        trajectoryStartTime = -1d;
+    }
+
+    //Returns the State at a given time, assumes Trajectory is not null
+    public Trajectory.State getState(double currTime) {
+        //Record the current time as the start time if we haven't "started" this trajectory yet
+        if(trajectoryStartTime == -1) {
+            trajectoryStartTime = currTime;
+        }
+
+        //Trajectory class automatically handles t = 0 or t > total time, so we can safely call this in all cases
+        return myTrajectory.sample(currTime - trajectoryStartTime);
     }
 
     //Full Trajectory control aside from the config kinematics and max speed/acceleration, but at that point just call the actual method
@@ -52,7 +102,7 @@ public class TrajectoryHelper {
 
     //Easier config creation
     public TrajectoryConfig createTrajectoryConfig(double startVelocity, double endVelocity, List<TrajectoryConstraint> constraints, boolean reverse) {
-        TrajectoryConfig output = new TrajectoryConfig(Constants.maxTranslationalSpeed, Constants.maxAcceleration);
+        TrajectoryConfig output = new TrajectoryConfig(Constants.maxTranslationalSpeed, Constants.TrajectoryConstants.maxTranslationalAcceleration);
         output.setKinematics(Constants.talonConstants.driveConstants.driveTalonKinematics);
         output.setStartVelocity(startVelocity);
         output.setEndVelocity(endVelocity);
@@ -63,7 +113,6 @@ public class TrajectoryHelper {
     }
 
     //Not super good algorithm, but should get the job done. Finds waypoints given current/end pose and the field boundaries
-    //TODO fix head node creation to not have an initial distance due to using calculated indexes instead of the actual pose
     public List<Translation2d> createWaypoints(Pose2d currentPose, Pose2d endPose) {
         //I should probably comment all this huh
         //The Translation2ds to be returned
@@ -80,7 +129,7 @@ public class TrajectoryHelper {
             double totDistance;
             //The list of nodes branching off this node
             List<Node> myNext;
-            //The node this node stems from
+            //The node this node branches off of
             Node parent;
             //The xIndex (in the masterpoints array) of the point this nodes represents
             int xIndex;
@@ -216,33 +265,35 @@ public class TrajectoryHelper {
             boolean touchesZone(double nextPoints[]) {
                 double currPoints[] = masterpoints[xIndex][yIndex];
 
-                for(int i = 0; i < Constants.outXMin.length; i++) {
+                for(int i = 0; i < Constants.TrajectoryConstants.outXMin.length; i++) {
                     //Assumes t == 1 when currPoints reaches nextPoints
                     //Therefore tMin and tMax should be less than 1
                     //Arbitrary I guess? Prevents division by 0 or a really small number
                     if(Math.abs(nextPoints[0] - currPoints[0]) > 0.0001) {
-                        double tMin = (Constants.outXMin[i] - currPoints[0]) / (nextPoints[0] - currPoints[0]);
-                        double tMax = (Constants.outXMax[i] - currPoints[0]) / (nextPoints[0] - currPoints[0]);
+                        double tMin = (Constants.TrajectoryConstants.outXMin[i] - currPoints[0]) / (nextPoints[0] - currPoints[0]);
+                        double tMax = (Constants.TrajectoryConstants.outXMax[i] - currPoints[0]) / (nextPoints[0] - currPoints[0]);
                         //The y values at the given point
                         double yMin = tMin * (nextPoints[1] - currPoints[1]);
                         double yMax = tMax * (nextPoints[1] - currPoints[1]);
     
                         //Basically if tMin is not negative and yMin would be in the OB zone or if that happens with tMax, then it touched a zone
-                        if((tMin >= 0 && yMin >= Constants.outYMin[i] && yMin <= Constants.outYMax[i]) || (tMax >= 0 && yMax >= Constants.outYMin[i] && yMax <= Constants.outYMax[i])) {
+                        if((tMin >= 0 && yMin >= Constants.TrajectoryConstants.outYMin[i] && yMin <= Constants.TrajectoryConstants.outYMax[i]) || 
+                        (tMax >= 0 && yMax >= Constants.TrajectoryConstants.outYMin[i] && yMax <= Constants.TrajectoryConstants.outYMax[i])) {
                             return true;
                         }
                     }
 
                     //Repeat of the above but using y as the basis for the t variable (necessary because vertical lines exist and wouldn't be caught by the above)
                     if(Math.abs(nextPoints[1] - currPoints[1]) > 0.0001) {
-                        double tMin = (Constants.outYMin[i] - currPoints[1]) / (nextPoints[1] - currPoints[1]);
-                        double tMax = (Constants.outYMax[i] - currPoints[1]) / (nextPoints[1] - currPoints[1]);
+                        double tMin = (Constants.TrajectoryConstants.outYMin[i] - currPoints[1]) / (nextPoints[1] - currPoints[1]);
+                        double tMax = (Constants.TrajectoryConstants.outYMax[i] - currPoints[1]) / (nextPoints[1] - currPoints[1]);
                         //The x values at the given point
                         double xMin = tMin * (nextPoints[0] - currPoints[0]);
                         double xMax = tMax * (nextPoints[0] - currPoints[0]);
     
                         //Basically if tMin is not negative and xMin would be in the OB zone or if that happens with tMax, then it touched a zone
-                        if((tMin >= 0 && xMin >= Constants.outXMin[i] && xMin <= Constants.outXMax[i]) || (tMax >= 0 && xMax >= Constants.outXMin[i] && xMax <= Constants.outXMax[i])) {
+                        if((tMin >= 0 && xMin >= Constants.TrajectoryConstants.outXMin[i] && xMin <= Constants.TrajectoryConstants.outXMax[i]) || 
+                        (tMax >= 0 && xMax >= Constants.TrajectoryConstants.outXMin[i] && xMax <= Constants.TrajectoryConstants.outXMax[i])) {
                             return true;
                         }
                     }
@@ -267,18 +318,22 @@ public class TrajectoryHelper {
             boolean wouldWork[][];
             //The list of lowest nodes (ie the ones who aren't parents yet). This way we don't do repeat calcNext()s on the same node
             List<Node> lowest;
+            //The Node with the lowest total distance whose indexes are true in the wouldWork array
+            Node best;
+            //The x/y points for the head node
+            double head[];
 
             //Constructor
-            Tree(Node head, Pose2d endPose) {
-                masterMap = new Node[Constants.xSteps][Constants.ySteps];
+            Tree(double[] head, Pose2d endPose) {
+                masterMap = new Node[Constants.TrajectoryConstants.xSteps][Constants.TrajectoryConstants.ySteps];
                 wouldWork = wouldWorkInit(endPose);
                 lowest = new ArrayList<Node>();
-                lowest.add(head);
+                this.head = head;
             }
 
             //Populates the wouldWork array with whether or not each point could get to the endPose without problems
             boolean[][] wouldWorkInit(Pose2d endPose) {
-                boolean output[][] = new boolean[Constants.xSteps][Constants.ySteps];
+                boolean output[][] = new boolean[Constants.TrajectoryConstants.xSteps][Constants.TrajectoryConstants.ySteps];
 
                 for(int r = 0; r < output.length; r++) {
                     for(int c = 0; c < output[r].length; c++) {
@@ -291,33 +346,35 @@ public class TrajectoryHelper {
 
             //This way we don't have to create a new Node in order to access the touchesZone method
             boolean touchesZoneStripped(double[] currPoints, Pose2d endPose) {
-                for(int i = 0; i < Constants.outXMin.length; i++) {
+                for(int i = 0; i < Constants.TrajectoryConstants.outXMin.length; i++) {
                     //Assumes t == 1 when currPoints reaches endPose
                     //Therefore tMin and tMax should be less than 1
                     //Arbitrary I guess? Prevents division by 0 or a really small number
                     if(Math.abs(endPose.getX() - currPoints[0]) > 0.0001) {
-                        double tMin = (Constants.outXMin[i] - currPoints[0]) / (endPose.getX() - currPoints[0]);
-                        double tMax = (Constants.outXMax[i] - currPoints[0]) / (endPose.getX() - currPoints[0]);
+                        double tMin = (Constants.TrajectoryConstants.outXMin[i] - currPoints[0]) / (endPose.getX() - currPoints[0]);
+                        double tMax = (Constants.TrajectoryConstants.outXMax[i] - currPoints[0]) / (endPose.getX() - currPoints[0]);
                         //The y values at the given point
                         double yMin = tMin * (endPose.getX() - currPoints[1]);
                         double yMax = tMax * (endPose.getX() - currPoints[1]);
     
                         //Basically if tMin is not negative and yMin would be in the OB zone or if that happens with tMax, then it touched a zone
-                        if((tMin >= 0 && yMin >= Constants.outYMin[i] && yMin <= Constants.outYMax[i]) || (tMax >= 0 && yMax >= Constants.outYMin[i] && yMax <= Constants.outYMax[i])) {
+                        if((tMin >= 0 && yMin >= Constants.TrajectoryConstants.outYMin[i] && yMin <= Constants.TrajectoryConstants.outYMax[i]) || 
+                        (tMax >= 0 && yMax >= Constants.TrajectoryConstants.outYMin[i] && yMax <= Constants.TrajectoryConstants.outYMax[i])) {
                             return true;
                         }
                     }
 
                     //Repeat of the above but using y as the basis for the t variable (necessary because vertical lines exist and wouldn't be caught by the above)
                     if(Math.abs(endPose.getY() - currPoints[1]) > 0.0001) {
-                        double tMin = (Constants.outYMin[i] - currPoints[1]) / (endPose.getY() - currPoints[1]);
-                        double tMax = (Constants.outYMax[i] - currPoints[1]) / (endPose.getY() - currPoints[1]);
+                        double tMin = (Constants.TrajectoryConstants.outYMin[i] - currPoints[1]) / (endPose.getY() - currPoints[1]);
+                        double tMax = (Constants.TrajectoryConstants.outYMax[i] - currPoints[1]) / (endPose.getY() - currPoints[1]);
                         //The x values at the given point
                         double xMin = tMin * (endPose.getY() - currPoints[0]);
                         double xMax = tMax * (endPose.getY() - currPoints[0]);
     
                         //Basically if tMin is not negative and xMin would be in the OB zone or if that happens with tMax, then it touched a zone
-                        if((tMin >= 0 && xMin >= Constants.outXMin[i] && xMin <= Constants.outXMax[i]) || (tMax >= 0 && xMax >= Constants.outXMin[i] && xMax <= Constants.outXMax[i])) {
+                        if((tMin >= 0 && xMin >= Constants.TrajectoryConstants.outXMin[i] && xMin <= Constants.TrajectoryConstants.outXMax[i]) || 
+                        (tMax >= 0 && xMax >= Constants.TrajectoryConstants.outXMin[i] && xMax <= Constants.TrajectoryConstants.outXMax[i])) {
                             return true;
                         }
                     }
@@ -331,10 +388,17 @@ public class TrajectoryHelper {
                 //What we'll set lowest to after calc the next for every node in lowest
                 List<Node> newLowest = new ArrayList<Node>();
 
-                for(Node aNode: lowest) {
-                    aNode.calcNext(Constants.useNodeBounds);
+                //Special case for head---assumes that lowest will always be populated otherwise
+                if(lowest.size() == 0) {
+                    //Node representation of head using the calculated indexes earlier so we can call calcNext()
+                    //Don't need to set the total distance correctly since we'll fix that in a moment
+                    Node tempHead = new Node(currIndexes[0], currIndexes[1], null, 0d);
+                    tempHead.calcNext(Constants.TrajectoryConstants.useNodeBounds);
 
-                    for(Node littleNode: aNode.myNext) {
+                    for(Node littleNode: tempHead.myNext) {
+                        //Corrects the distances
+                        littleNode.totDistance = Math.sqrt(Math.pow(masterpoints[littleNode.xIndex][littleNode.yIndex][0] - currentPose.getX(), 2) + Math.pow(masterpoints[littleNode.xIndex][littleNode.yIndex][1] - currentPose.getY(), 2));
+
                         //Gets the node in the mastermap corresponding to littleNode's indexes
                         Node mapNode = masterMap[littleNode.xIndex][littleNode.yIndex];
 
@@ -344,64 +408,123 @@ public class TrajectoryHelper {
                             newLowest.add(littleNode);
                             //Set masterMap to littleNode
                             masterMap[littleNode.xIndex][littleNode.yIndex] = littleNode;
+
+                            //If the Node works for getting to the endpoint and there is no best node or the littleNode has a lower total distance than the best
+                            if(wouldWork[littleNode.xIndex][littleNode.yIndex] && (best == null || littleNode.totDistance < best.totDistance)) {
+                                //Make littleNode the best
+                                best = littleNode;
+                            }
                         }
-                    }
-                }
+                    } 
+                } else {
+                    for(Node aNode: lowest) {
+                        aNode.calcNext(Constants.TrajectoryConstants.useNodeBounds);
 
-                //We want to kill bounds after every Node in lowest has calculated in order for masterMap to be populated with the lowest
-                //distance nodes to a given index
-                for(Node aNode: newLowest) {
-                    deadIndexes[aNode.xIndex][aNode.yIndex] = true;
-                }
+                        for(Node littleNode: aNode.myNext) {
+                            //Gets the node in the mastermap corresponding to littleNode's indexes
+                            Node mapNode = masterMap[littleNode.xIndex][littleNode.yIndex];
 
-                lowest = newLowest;
-            }
+                            //If the node in the mastermap is null or it has a greater total distance
+                            if(mapNode == null || littleNode.totDistance < mapNode.totDistance) {
+                                //Add littleNode :)
+                                newLowest.add(littleNode);
+                                //Set masterMap to littleNode
+                                masterMap[littleNode.xIndex][littleNode.yIndex] = littleNode;
 
-            //Returns the lowest distance Node that can get to the endPose, returns null if none can
-            Node best() {
-                Node output = null;
-
-                for(int r = 0; r < wouldWork.length; r++) {
-                    for(int c = 0; c < wouldWork[r].length; c++) {
-                        //If this node could work and if we have a node in masterMap for that
-                        if(wouldWork[r][c] && masterMap[r][c] != null) {
-                            //If we don't have any output yet or if the masterMap node has a lower total distance
-                            if(output == null || masterMap[r][c].totDistance < output.totDistance) {
-                                //Set output to map node
-                                output = masterMap[r][c];
+                                //If the Node works for getting to the endpoint and there is no best node or the littleNode has a lower total distance than the best
+                                if(wouldWork[littleNode.xIndex][littleNode.yIndex] && (best == null || littleNode.totDistance < best.totDistance)) {
+                                    //Make littleNode the best
+                                    best = littleNode;
+                                }
                             }
                         }
                     }
+
+                    //We want to kill bounds after every Node in lowest has calcNext()ed so that we don't limit our node options while calcNext()ing
+                    for(Node aNode: newLowest) {
+                        deadIndexes[aNode.xIndex][aNode.yIndex] = true;
+                    }
                 }
 
-                return output;
+                lowest = newLowest;
             }
         }
         //End nested class construction ----------------------------------------------------------------------------------
         
         //Getka naming
-        Tree wow = new Tree(new Node(currIndexes[0], currIndexes[1], null, Math.sqrt(Math.pow(masterpoints[currIndexes[0]][currIndexes[1]][0] - currentPose.getX(), 2) + Math.pow(masterpoints[currIndexes[0]][currIndexes[1]][1] - currentPose.getY(), 2))), endPose);
-        //Probably null to start
-        Node best = wow.best();
+        Tree wow = new Tree(new double[]{currentPose.getX(), currentPose.getY()}, endPose);
 
-        //Until we have a node that works, keep calculating new layers
-        while(best == null) {
-            wow.calcNext();
-            best = wow.best();
+        //Checks if the currentPose can get to the endPose without problems
+        if(!wow.touchesZoneStripped(wow.head, endPose)) {
+            //Returns empty list
+            return output;
         }
 
-        //Traverses through the best node's lining starting with best
-        for(Node temp = best; temp != null; temp = temp.parent) {
+        //Until we have a node that works, keep calculating new layers
+        while(wow.best == null) {
+            wow.calcNext();
+        }
+
+        //Traverses through the best node's line starting with best
+        for(Node temp = wow.best; temp != null; temp = temp.parent) {
             //Adds at start so that the list isn't reversed
             output.add(0, new Translation2d(masterpoints[temp.xIndex][temp.yIndex][0], masterpoints[temp.xIndex][temp.yIndex][1]));
+
+            //Special case for one belowe the top level since we may not have to add the top level
+            if(temp.parent.parent == null) {
+                //If from currentPose to the current Node (one below top) works, then don't add top
+                if(!wow.touchesZoneStripped(masterpoints[temp.xIndex][temp.yIndex], currentPose)) {
+                    break;
+                }
+            }
         }
 
         return output;
     }
 
-    //TODO implement (I don't feel like it right now)
-    public static int[] currentIndexes(Pose2d currentPose, Pose2d endPose) {
+    //Returns the indexes one "closer" to the endPose based on the currentPose
+    public int[] currentIndexes(Pose2d currentPose, Pose2d endPose) {
+        //The indexes to be returned
         int output[] = new int[2];
+        boolean lessX = currentPose.getX() < endPose.getX();
+        boolean lessY = currentPose.getY() < endPose.getY();
+
+        if(lessX) {
+            //If less increment, since we want to be one index "closer" to the endPose than the currentPose points
+            for(int i = 0; i < masterpoints.length; i++) {
+                //If we're at the end or the currentPose x fits within the current masterpoint and next masterpoint
+                if(i == masterpoints.length - 1 || (masterpoints[i][0][0] <= currentPose.getX() && masterpoints[i + 1][0][0] >= currentPose.getX())) {
+                    output[0] = i;
+                    break;
+                }
+            }
+        } else {
+            //Above but with de-incrementation
+            for(int i = masterpoints.length - 1; i >= 0; i--) {
+                //If i is the start or currentPose x fits within the current masterpoint and "previous" masterpoint
+                if(i == 0 || (masterpoints[i][0][0] >= currentPose.getX() && masterpoints[i - 1][0][0] <= currentPose.getX())) {
+                    output[0] = i;
+                    break;
+                }
+            }
+        }
+
+        //Above but for y
+        if(lessY) {
+            for(int i = 0; i < masterpoints[0].length; i++) {
+                if(i == masterpoints[0].length - 1 || (masterpoints[0][i][1] <= currentPose.getY() && masterpoints[0][i + 1][1] >= currentPose.getY())) {
+                    output[1] = i;
+                    break;
+                }
+            }
+        } else {
+            for(int i = masterpoints[0].length - 1; i >= 0; i--) {
+                if(i == 0 || (masterpoints[0][i][1] >= currentPose.getY() && masterpoints[0][i - 1][1] <= currentPose.getY())) {
+                    output[1] = i;
+                    break;
+                }
+            }
+        }
 
         return output;
     }
