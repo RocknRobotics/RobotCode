@@ -15,6 +15,7 @@ import edu.wpi.first.math.trajectory.TrajectoryConfig;
 import edu.wpi.first.math.trajectory.TrajectoryGenerator;
 import edu.wpi.first.math.trajectory.constraint.TrajectoryConstraint;
 import edu.wpi.first.networktables.NetworkTableInstance;
+import edu.wpi.first.wpilibj.DriverStation;
 import frc.robot.RoboRio.Constants;
 
 public class TrajectoryHelper {
@@ -33,15 +34,39 @@ public class TrajectoryHelper {
     //Controller for following the Trajectory
     private HolonomicDriveController myHolonomicDriveController;
 
+    //Need to have copies essentially in order to change them if the alliance colour is red
+    private double outXMin[];
+    private double outYMin[];
+    private double outXMax[];
+    private double outYMax[];
+
     public TrajectoryHelper(NetworkTableInstance inst) {
         myInstance = inst;
     }
 
     public void create() {
+        //If we're red alliance
+        if(DriverStation.getAlliance() != DriverStation.Alliance.Blue) {
+            //Flip em
+            for(int i = 0; i < Constants.TrajectoryConstants.outXMin.length; i++) {
+                outXMin[i] = Constants.TrajectoryConstants.fieldLength - Constants.TrajectoryConstants.outXMin[i];
+                outXMax[i] = Constants.TrajectoryConstants.fieldLength - Constants.TrajectoryConstants.outXMax[i];
+                outYMin[i] = Constants.TrajectoryConstants.fieldWidth - Constants.TrajectoryConstants.outYMin[i];
+                outYMax[i] = Constants.TrajectoryConstants.fieldWidth - Constants.TrajectoryConstants.outYMax[i];
+            }
+        } else {
+            //Keep it as is
+            outXMin = Constants.TrajectoryConstants.outXMin;
+            outYMin = Constants.TrajectoryConstants.outYMin;
+            outXMax = Constants.TrajectoryConstants.outXMax;
+            outYMax = Constants.TrajectoryConstants.outYMax;
+        }
+
         for(int r = 0; r < masterpoints.length; r++) {
             for(int c = 0; c < masterpoints.length; c++) {
-                masterpoints[r][c][0] = (Constants.TrajectoryConstants.inXMax / (Constants.TrajectoryConstants.xSteps + 2)) * (r + 1);
-                masterpoints[r][c][1] = (Constants.TrajectoryConstants.inYMax / (Constants.TrajectoryConstants.ySteps + 2)) * (c + 1);
+                //The +2 and +1 make it so that the ends aren't included when calculating preset points (since they would never work)
+                masterpoints[r][c][0] = (Constants.TrajectoryConstants.fieldLength / (Constants.TrajectoryConstants.xSteps + 2)) * (r + 1);
+                masterpoints[r][c][1] = (Constants.TrajectoryConstants.fieldWidth / (Constants.TrajectoryConstants.ySteps + 2)) * (c + 1);
             }
         }
 
@@ -61,10 +86,12 @@ public class TrajectoryHelper {
         myHolonomicDriveController = null;
     }
 
+    //Returns if the robot is within the tolerance specified by the controllerTolerance
     public boolean atReference() {
         return myHolonomicDriveController.atReference();
     }
 
+    //Both the ChassissSpeeds methods are FIELD-RELATIVE
     public ChassisSpeeds getChassisSpeeds(Pose2d currentPose, double currTime, Rotation2d targetHeading) {
         return myHolonomicDriveController.calculate(currentPose, getState(currTime), targetHeading);
     }
@@ -81,7 +108,7 @@ public class TrajectoryHelper {
     //Returns the State at a given time, assumes Trajectory is not null
     public Trajectory.State getState(double currTime) {
         //Record the current time as the start time if we haven't "started" this trajectory yet
-        if(trajectoryStartTime == -1) {
+        if(trajectoryStartTime == -1d) {
             trajectoryStartTime = currTime;
         }
 
@@ -265,35 +292,35 @@ public class TrajectoryHelper {
             boolean touchesZone(double nextPoints[]) {
                 double currPoints[] = masterpoints[xIndex][yIndex];
 
-                for(int i = 0; i < Constants.TrajectoryConstants.outXMin.length; i++) {
+                for(int i = 0; i < outXMin.length; i++) {
                     //Assumes t == 1 when currPoints reaches nextPoints
                     //Therefore tMin and tMax should be less than 1
                     //Arbitrary I guess? Prevents division by 0 or a really small number
                     if(Math.abs(nextPoints[0] - currPoints[0]) > 0.0001) {
-                        double tMin = (Constants.TrajectoryConstants.outXMin[i] - currPoints[0]) / (nextPoints[0] - currPoints[0]);
-                        double tMax = (Constants.TrajectoryConstants.outXMax[i] - currPoints[0]) / (nextPoints[0] - currPoints[0]);
+                        double tMin = (outXMin[i] - currPoints[0]) / (nextPoints[0] - currPoints[0]);
+                        double tMax = (outXMax[i] - currPoints[0]) / (nextPoints[0] - currPoints[0]);
                         //The y values at the given point
-                        double yMin = tMin * (nextPoints[1] - currPoints[1]);
-                        double yMax = tMax * (nextPoints[1] - currPoints[1]);
+                        double yMin = tMin * (nextPoints[1] - currPoints[1]); //Enter
+                        double yMax = tMax * (nextPoints[1] - currPoints[1]); //Exit
     
                         //Basically if tMin is not negative and yMin would be in the OB zone or if that happens with tMax, then it touched a zone
-                        if((tMin >= 0 && yMin >= Constants.TrajectoryConstants.outYMin[i] && yMin <= Constants.TrajectoryConstants.outYMax[i]) || 
-                        (tMax >= 0 && yMax >= Constants.TrajectoryConstants.outYMin[i] && yMax <= Constants.TrajectoryConstants.outYMax[i])) {
+                        if((tMin >= 0 && yMin - Constants.TrajectoryConstants.robotAvoidance >= outYMin[i] && yMin + Constants.TrajectoryConstants.robotAvoidance <= outYMax[i]) || 
+                        (tMax >= 0 && yMax - Constants.TrajectoryConstants.robotAvoidance >= outYMin[i] && yMax + Constants.TrajectoryConstants.robotAvoidance <= outYMax[i])) {
                             return true;
                         }
                     }
 
                     //Repeat of the above but using y as the basis for the t variable (necessary because vertical lines exist and wouldn't be caught by the above)
                     if(Math.abs(nextPoints[1] - currPoints[1]) > 0.0001) {
-                        double tMin = (Constants.TrajectoryConstants.outYMin[i] - currPoints[1]) / (nextPoints[1] - currPoints[1]);
-                        double tMax = (Constants.TrajectoryConstants.outYMax[i] - currPoints[1]) / (nextPoints[1] - currPoints[1]);
+                        double tMin = (outYMin[i] - currPoints[1]) / (nextPoints[1] - currPoints[1]);
+                        double tMax = (outYMax[i] - currPoints[1]) / (nextPoints[1] - currPoints[1]);
                         //The x values at the given point
                         double xMin = tMin * (nextPoints[0] - currPoints[0]);
                         double xMax = tMax * (nextPoints[0] - currPoints[0]);
     
                         //Basically if tMin is not negative and xMin would be in the OB zone or if that happens with tMax, then it touched a zone
-                        if((tMin >= 0 && xMin >= Constants.TrajectoryConstants.outXMin[i] && xMin <= Constants.TrajectoryConstants.outXMax[i]) || 
-                        (tMax >= 0 && xMax >= Constants.TrajectoryConstants.outXMin[i] && xMax <= Constants.TrajectoryConstants.outXMax[i])) {
+                        if((tMin >= 0 && xMin - Constants.TrajectoryConstants.robotAvoidance >= outXMin[i] && xMin + Constants.TrajectoryConstants.robotAvoidance <= outXMax[i]) || 
+                        (tMax >= 0 && xMax - Constants.TrajectoryConstants.robotAvoidance >= outXMin[i] && xMax + Constants.TrajectoryConstants.robotAvoidance <= outXMax[i])) {
                             return true;
                         }
                     }
@@ -346,35 +373,35 @@ public class TrajectoryHelper {
 
             //This way we don't have to create a new Node in order to access the touchesZone method
             boolean touchesZoneStripped(double[] currPoints, Pose2d endPose) {
-                for(int i = 0; i < Constants.TrajectoryConstants.outXMin.length; i++) {
+                for(int i = 0; i < outXMin.length; i++) {
                     //Assumes t == 1 when currPoints reaches endPose
                     //Therefore tMin and tMax should be less than 1
                     //Arbitrary I guess? Prevents division by 0 or a really small number
                     if(Math.abs(endPose.getX() - currPoints[0]) > 0.0001) {
-                        double tMin = (Constants.TrajectoryConstants.outXMin[i] - currPoints[0]) / (endPose.getX() - currPoints[0]);
-                        double tMax = (Constants.TrajectoryConstants.outXMax[i] - currPoints[0]) / (endPose.getX() - currPoints[0]);
+                        double tMin = (outXMin[i] - currPoints[0]) / (endPose.getX() - currPoints[0]);
+                        double tMax = (outXMax[i] - currPoints[0]) / (endPose.getX() - currPoints[0]);
                         //The y values at the given point
                         double yMin = tMin * (endPose.getX() - currPoints[1]);
                         double yMax = tMax * (endPose.getX() - currPoints[1]);
     
                         //Basically if tMin is not negative and yMin would be in the OB zone or if that happens with tMax, then it touched a zone
-                        if((tMin >= 0 && yMin >= Constants.TrajectoryConstants.outYMin[i] && yMin <= Constants.TrajectoryConstants.outYMax[i]) || 
-                        (tMax >= 0 && yMax >= Constants.TrajectoryConstants.outYMin[i] && yMax <= Constants.TrajectoryConstants.outYMax[i])) {
+                        if((tMin >= 0 && yMin - Constants.TrajectoryConstants.robotAvoidance >= outYMin[i] && yMin + Constants.TrajectoryConstants.robotAvoidance <= outYMax[i]) || 
+                        (tMax >= 0 && yMax - Constants.TrajectoryConstants.robotAvoidance >= outYMin[i] && yMax + Constants.TrajectoryConstants.robotAvoidance <= outYMax[i])) {
                             return true;
                         }
                     }
 
                     //Repeat of the above but using y as the basis for the t variable (necessary because vertical lines exist and wouldn't be caught by the above)
                     if(Math.abs(endPose.getY() - currPoints[1]) > 0.0001) {
-                        double tMin = (Constants.TrajectoryConstants.outYMin[i] - currPoints[1]) / (endPose.getY() - currPoints[1]);
-                        double tMax = (Constants.TrajectoryConstants.outYMax[i] - currPoints[1]) / (endPose.getY() - currPoints[1]);
+                        double tMin = (outYMin[i] - currPoints[1]) / (endPose.getY() - currPoints[1]);
+                        double tMax = (outYMax[i] - currPoints[1]) / (endPose.getY() - currPoints[1]);
                         //The x values at the given point
                         double xMin = tMin * (endPose.getY() - currPoints[0]);
                         double xMax = tMax * (endPose.getY() - currPoints[0]);
     
                         //Basically if tMin is not negative and xMin would be in the OB zone or if that happens with tMax, then it touched a zone
-                        if((tMin >= 0 && xMin >= Constants.TrajectoryConstants.outXMin[i] && xMin <= Constants.TrajectoryConstants.outXMax[i]) || 
-                        (tMax >= 0 && xMax >= Constants.TrajectoryConstants.outXMin[i] && xMax <= Constants.TrajectoryConstants.outXMax[i])) {
+                        if((tMin >= 0 && xMin - Constants.TrajectoryConstants.robotAvoidance >= outXMin[i] && xMin + Constants.TrajectoryConstants.robotAvoidance <= outXMax[i]) || 
+                        (tMax >= 0 && xMax - Constants.TrajectoryConstants.robotAvoidance >= outXMin[i] && xMax + Constants.TrajectoryConstants.robotAvoidance <= outXMax[i])) {
                             return true;
                         }
                     }
@@ -440,7 +467,7 @@ public class TrajectoryHelper {
                         }
                     }
 
-                    //We want to kill bounds after every Node in lowest has calcNext()ed so that we don't limit our node options while calcNext()ing
+                    //We want to kill bounds after every Node in lowest has calcNext()ed so that we don't accidentally limit our node options while calcNext()ing
                     for(Node aNode: newLowest) {
                         deadIndexes[aNode.xIndex][aNode.yIndex] = true;
                     }
@@ -456,7 +483,7 @@ public class TrajectoryHelper {
 
         //Checks if the currentPose can get to the endPose without problems
         if(!wow.touchesZoneStripped(wow.head, endPose)) {
-            //Returns empty list
+            //Returns empty list if it can
             return output;
         }
 
@@ -470,8 +497,10 @@ public class TrajectoryHelper {
             //Adds at start so that the list isn't reversed
             output.add(0, new Translation2d(masterpoints[temp.xIndex][temp.yIndex][0], masterpoints[temp.xIndex][temp.yIndex][1]));
 
-            //Special case for one belowe the top level since we may not have to add the top level
-            if(temp.parent.parent == null) {
+            //Head node == tree.head, which uses pseudo bounds
+            //Therefore, we want to check if the current pose can make it to the node below tree.head without any problems
+            //Since then we can exclude tree.head
+            if(temp.parent.parent == null && temp.parent != null) {
                 //If from currentPose to the current Node (one below top) works, then don't add top
                 if(!wow.touchesZoneStripped(masterpoints[temp.xIndex][temp.yIndex], currentPose)) {
                     break;
