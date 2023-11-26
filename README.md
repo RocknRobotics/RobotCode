@@ -4,4 +4,4 @@ Timed Robot + swerve drive setup that plans to have communication between the ro
 
 Copy build.gradle and replace the default build.gradle file. Other folders go in the robot folder. There's still some things marked TODO (I think all it is is getting values like wheel diameter), so it won't work yet.
 
-Make sure to create a new branch and create a pull request when making changes. Reviewers are those who should look over your code before it's merged, and assigness are the people who should be working on a certain issue. The github should automatically assign the Rock N' Robotics account as a reviewer for all pull requests.
+Make sure to create a new branch and create a pull request when making changes. Reviewers are those who should look over your code before it's merged, and assigness are the people who should be working on a given issue (ask to be added if you want to work on a certain issue). The github should automatically assign the Rock N' Robotics account as a reviewer for all pull requests.
