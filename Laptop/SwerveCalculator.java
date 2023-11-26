@@ -15,8 +15,6 @@ import edu.wpi.first.networktables.DoubleSubscriber;
 import edu.wpi.first.networktables.NetworkTableInstance;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import frc.robot.RoboRio.Constants;
-import frc.robot.RoboRio.Constants.talonConstants.driveConstants;
-import frc.robot.RoboRio.Constants.talonConstants.turnConstants;
 
 public class SwerveCalculator {
     //The inputs from the drive controller
@@ -63,7 +61,7 @@ public class SwerveCalculator {
         outputUpdateEntry = myInstance.getBooleanTopic("/laptop/swerve/update/output").getEntry(false);
         resetOdometerEntry = myInstance.getBooleanTopic("/laptop/swerve/odometer/reset").getEntry(false);
 
-        turnPIDController = new PIDController(turnConstants.kP, 0d, 0d);
+        turnPIDController = new PIDController(Constants.talonConstants.turnConstants.kP, 0d, 0d);
         turnPIDController.enableContinuousInput(-Math.PI, Math.PI);
     }
 
@@ -110,21 +108,7 @@ public class SwerveCalculator {
         myInstance.flush();
     }
 
-    public void disabledInit() {
-        while(outputUpdateEntry.get()) {
-            try {
-                Thread.sleep(10);
-            } catch(InterruptedException e) {
-                e.printStackTrace();
-            }
-        }
-
-        driveSetPublisher.set(new double[]{0d, 0d, 0d, 0d});
-        turnSetPublisher.set(new double[]{0d, 0d, 0d, 0d});
-        outputUpdateEntry.set(true);
-
-        myInstance.flush();
-    }
+    public void disabledInit() {}
 
     public void disabledPeriodic() {}
 
@@ -138,28 +122,34 @@ public class SwerveCalculator {
         double driveSets[] = new double[]{0d, 0d, 0d, 0d};
         double turnSets[] = new double[]{0d, 0d, 0d, 0d};
         //Converts PS4 joystick inputs (field relative) into robot-relative speeds
-        ChassisSpeeds speeds = ChassisSpeeds.fromFieldRelativeSpeeds(inputs[0] * Constants.maxTranslationalSpeed, 
-        inputs[1] * Constants.maxTranslationalSpeed, inputs[2] * Constants.maxTranslationalSpeed, Rotation2d.fromDegrees(reducedAngle));
+        //First is x m/s where fwd is positive
+        //Second is y m/s where left is positive
+        //Third is rad/s where counter clockwise is positive
+        //Fourth is robot angle
+        //Input[0] == left/right, input[1] == up/down, input[2] == left/right (turn)
+        //So first == input[1], second == -input[0], and third == -input[2]?
+        ChassisSpeeds speeds = ChassisSpeeds.fromFieldRelativeSpeeds(inputs[1] * Constants.maxTranslationalSpeed, 
+        -inputs[0] * Constants.maxTranslationalSpeed, -inputs[2] * Constants.maxAngularSpeed, Rotation2d.fromDegrees(reducedAngle));
         //Converts those speeds to targetStates since I'm not a monster who puts everything on one line (I had to resist the urge to)
-        SwerveModuleState[] targetStates = driveConstants.driveTalonKinematics.toSwerveModuleStates(speeds);
+        SwerveModuleState[] targetStates = Constants.talonConstants.driveConstants.driveTalonKinematics.toSwerveModuleStates(speeds);
 
         //Scales the targetStates in case it's not physically possible (for example it's impossible to go the true full move velocity 
         //and true full rotational velocity at the same time)
-        SwerveDriveKinematics.desaturateWheelSpeeds(targetStates, driveConstants.driveTalonKinematics.toChassisSpeeds(
+        SwerveDriveKinematics.desaturateWheelSpeeds(targetStates, Constants.talonConstants.driveConstants.driveTalonKinematics.toChassisSpeeds(
             new SwerveModuleState[]{new SwerveModuleState(velocities[0], Rotation2d.fromRadians(positions[0])), 
             new SwerveModuleState(velocities[1], Rotation2d.fromRadians(positions[1])), 
             new SwerveModuleState(velocities[2], Rotation2d.fromRadians(positions[2])), 
             new SwerveModuleState(velocities[3], Rotation2d.fromRadians(positions[3]))}), 
-        driveConstants.maxSpeed, Constants.maxTranslationalSpeed, Constants.maxAngularSpeed);
+        Constants.talonConstants.driveConstants.maxSpeed, Constants.maxTranslationalSpeed, Constants.maxAngularSpeed);
 
         //Optimize the states
         for(int i = 0; i < targetStates.length; i++) {
-            if(Math.abs(targetStates[i].speedMetersPerSecond) < driveConstants.stopBelowThisVelocity) {
+            if(Math.abs(targetStates[i].speedMetersPerSecond) < Constants.talonConstants.driveConstants.stopBelowThisVelocity) {
                 driveSets[i] = 0d;
                 turnSets[i] = 0d;
             } else {
                 SwerveModuleState.optimize(targetStates[i], Rotation2d.fromRadians(positions[i]));
-                driveSets[i] = targetStates[i].speedMetersPerSecond / (driveConstants.maxSpeed * driveConstants.metresPerRotation);
+                driveSets[i] = targetStates[i].speedMetersPerSecond / (Constants.talonConstants.driveConstants.maxSpeed * Constants.talonConstants.driveConstants.metresPerRotation);
                 turnSets[i] = turnPIDController.calculate(positions[i], targetStates[i].angle.getRadians());
             }
         }

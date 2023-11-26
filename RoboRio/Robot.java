@@ -10,7 +10,7 @@ import frc.robot.RoboRio.Swerve.SwerveMaster;
 public class Robot extends TimedRobot {
   //The PS4Controller for driving
   private PS4Controller driveController;
-  //The current factor to multiply driveController inputs by -> 0, 0.25, 0.5, 0.75, or 1
+  //The current factor to multiply driveController inputs by -> 0, 0.25, 0.5, 0.75, or 1 (basically different speed levels)
   private double driveControllerFactor;
   //Self-explanatory
   private SwerveMaster mySwerveMaster;
@@ -83,6 +83,8 @@ public class Robot extends TimedRobot {
   @Override
   public void disabledInit() {
     currentMethodPublisher.set("disabledInit");
+
+    mySwerveMaster.set(new double[]{0d, 0d, 0d, 0d}, new double[]{0d, 0d, 0d, 0d});
   }
 
   @Override

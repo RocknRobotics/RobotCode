@@ -27,6 +27,8 @@ public final class Constants {
     public static final double robotWidth = 0d; //TODO
     //The height of the robot top to bottom in metres
     public static final double robotHeight = 0d; //TODO
+    //Length of the diagonal of the robot
+    public static final double robotDiagonal = Math.sqrt(Math.pow(robotWidth, 2) + Math.pow(robotHeight, 2));
 
     public static final class talonConstants {
         //Update rate of the talons' position/velocity/acceleration in Hz 
@@ -99,7 +101,8 @@ public final class Constants {
         //The max angular acceleration to use in the drive controller constraints (see below) (radians/(second^2))
         public static final double maxAngularAcceleration = 1d; //TODO
 
-        //IMPORTANT: Treat all coordinates with respect to left corner of the blue alliance (that is, assume the origin to be that corner
+        //IMPORTANT: Treat all coordinates with respect to the blue alliance and the bottom right corner (since frc is stupid and makes it so
+        //that x is up/down and y is left/right except left is positive cause why not)
         //The minimum x values of each of the out of bounds areas, metres
         public static final double outXMin[] = new double[]{}; //TODO
         //The minimum y values of each of the out of bounds areas, metres
@@ -108,12 +111,16 @@ public final class Constants {
         public static final double outXMax[] = new double[]{}; //TODO
         //The maximum y values of each of the out of bounds areas, metres
         public static final double outYMax[] = new double[]{}; //TODO
-        //The maximum x value of what constitutes the in bounds area, treating the minimum x value as 0 (so essentially the length/width)
-        //Metres
-        public static final double inXMax = 0d; //TODO
-        //The maximum y value of what constitutes the in bounds area, treating the minimum y value as 0 (so essentially the length/width)
-        //Metres
-        public static final double inYMax = 0d; //TODO
+
+        //The length of the field (up/down) in metres
+        //X direction
+        public static final double fieldLength = 0d; //TODO
+        //The width of the field (left/right) in metres
+        //Y direction
+        public static final double fieldWidth = 0d; //TODO
+
+        //Since the trajectories are calculated using the center of the robot, then the diagonal / 2 will be the most avoidance we theoretically need
+        public static final double robotAvoidance = robotDiagonal / 2d;
 
         //The number of points to initialize in the masterpoints array in the x direction
         public static final int xSteps = 100; //Mess around with this? Not sure how high we can/should go

@@ -120,7 +120,8 @@ public class SwerveMaster {
     }
 
     public double getReducedAngle() {
-        return Math.IEEEremainder(accelerometer.getAngle(), 360d);
+        //You've got to be joking the darn navx is cw positive when we need ccw positive readings
+        return Math.IEEEremainder(-accelerometer.getAngle(), 360);
     }
 
     public Rotation2d getRotation2d() {
